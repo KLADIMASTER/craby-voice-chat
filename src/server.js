@@ -168,7 +168,34 @@ async function speechToText(audioBuffer) {
 }
 
 // Get response from OpenClaw (the REAL Craby!)
+// System prompt that tells Craby to respond in a voice-call-friendly way
+const VOICE_SYSTEM_PROMPT = `Je bent Craby en je praat via een TELEFOONGESPREK. De gebruiker hoort je antwoord als gesproken audio.
+
+KRITIEKE REGELS VOOR SPRAAK-OUTPUT:
+- Schrijf ALLEEN vloeiende, gesproken tekst — alsof je echt aan het bellen bent
+- GEEN markdown: geen ##, **, *, \`, ---, >, bullet points of nummering
+- GEEN emoji's
+- GEEN lijstjes of opsommingen — verwerk alles in lopende zinnen en alinea's
+- GEEN speciale tekens of formatting
+- Schrijf getallen uit waar logisch: "$74.000" → "vierenzeventig duizend dollar"
+- Percentages: "-5%" → "min vijf procent"
+- Houd het conversationeel en beknopt — max 3-4 alinea's
+- Je praat Nederlands tenzij de gebruiker Engels praat
+- Wees direct en informatief, geen onnodige intro's
+
+VOORBEELD VAN GOEDE OUTPUT:
+"Oké, de cryptomarkt zit behoorlijk in de min. Bitcoin staat rond de zesenzeventig duizend dollar, dat is flink gezakt van de all-time high van honderdacht duizend. De hoofdreden is de onzekerheid rond Trump's tarieven. Daar komt nog een grote commodity crash bij, goud en zilver zijn flink gedaald, en dat heeft een cascade van liquidaties veroorzaakt in crypto."
+
+VOORBEELD VAN SLECHTE OUTPUT (DIT MAG NIET):
+"## 🔥 Crypto Analyse\\n- BTC: $76K 📉\\n- SOL: -44%\\n---\\n### Oorzaken:"`;
+
 async function getOpenClawResponse(messages) {
+  // Prepend voice system prompt to messages
+  const voiceMessages = [
+    { role: 'system', content: VOICE_SYSTEM_PROMPT },
+    ...messages
+  ];
+
   const response = await fetch(`${OPENCLAW_API_URL}/v1/chat/completions`, {
     method: 'POST',
     headers: {
@@ -176,8 +203,8 @@ async function getOpenClawResponse(messages) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      messages: messages,
-      max_tokens: 500,
+      messages: voiceMessages,
+      max_tokens: 800,
     }),
   });
 
@@ -191,72 +218,95 @@ async function getOpenClawResponse(messages) {
   return result.choices[0].message.content;
 }
 
-// Convert text to TTS-friendly format using GPT-4o
-async function makeTTSFriendly(text) {
-  const systemPrompt = `You are a text formatter for text-to-speech. Your ONLY job is to rewrite the input text so it sounds natural when spoken aloud.
-
-RULES:
-- Remove ALL emoji (🦀📉 etc)
-- Remove ALL markdown (**bold**, *italic*, \`code\`)  
-- Convert prices smartly based on size:
-  * Large prices ($1000+): round to whole dollars, e.g. "$74,138.50" → "vierenzeventig duizend honderd achtendertig dollar"
-  * Medium prices ($1-$999): keep max 2 decimals if relevant, e.g. "$16.33" → "zestien dollar drieëndertig"
-  * Small prices ($0.01-$0.99): say cents, e.g. "$0.45" → "vijfenveertig cent"
-  * Micro prices (<$0.01): keep significant decimals, e.g. "$0.000030" → "nul komma nul nul nul nul drie dollar"
-- Convert "-5%" to "min 5 procent"
-- Convert "(24h)" to "in de afgelopen 24 uur"
-- Remove colons used as separators: "Bitcoin: $74k" → "Bitcoin, 74 duizend dollar"
-- Keep the same language as input (Dutch/English)
-- Keep the same meaning and personality
-- Output ONLY the converted text, nothing else
-
-Example input: "**Bitcoin:** $73.144,70 📉 (-4,62% in 24u)"
-Example output: "Bitcoin, drieënzeventig duizend honderd vierenveertig dollar, min 4 komma 62 procent in de afgelopen 24 uur"
-
-Example input: "PEPE: $0.00001234"
-Example output: "PEPE, nul komma nul nul nul nul één twee drie vier dollar"`;
-
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'openai/gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: text }
-      ],
-      max_tokens: 500,
-      temperature: 0.3,
-    }),
-  });
-
-  if (!response.ok) {
-    console.error('GPT-4o TTS formatting failed:', response.status);
-    // Fallback to basic sanitization if GPT-4o fails
-    return basicSanitize(text);
-  }
-
-  const result = await response.json();
-  return result.choices[0].message.content;
+// Strip all markdown and formatting artifacts from text (used as pre-processing + fallback)
+function stripMarkdown(text) {
+  let result = text;
+  // Remove code blocks
+  result = result.replace(/```[\s\S]*?```/g, '');
+  // Remove headers (## Title)
+  result = result.replace(/^#{1,6}\s+/gm, '');
+  // Remove horizontal rules (---, ***, ___)
+  result = result.replace(/^[\-\*_]{3,}\s*$/gm, '');
+  // Remove blockquotes (> text)
+  result = result.replace(/^>\s*/gm, '');
+  // Remove bold **text** and __text__
+  result = result.replace(/\*\*([^*]+)\*\*/g, '$1');
+  result = result.replace(/__([^_]+)__/g, '$1');
+  // Remove italic *text* and _text_
+  result = result.replace(/\*([^*]+)\*/g, '$1');
+  result = result.replace(/_([^_]+)_/g, '$1');
+  // Remove inline code `text`
+  result = result.replace(/`([^`]+)`/g, '$1');
+  // Remove bullet points (- item, * item, numbered lists)
+  result = result.replace(/^\s*[\-\*•]\s+/gm, '');
+  result = result.replace(/^\s*\d+[\.\)]\s+/gm, '');
+  // Remove ALL emoji (comprehensive ranges)
+  result = result.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{FE00}-\u{FE0F}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA00}-\u{1FA6F}]|[\u{1FA70}-\u{1FAFF}]|[\u{200D}]|[\u{20E3}]|[\u{FE0F}]/gu, '');
+  // Remove leftover markdown artifacts
+  result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); // [links](url) → links
+  result = result.replace(/\|/g, ','); // table pipes
+  // Clean up whitespace
+  result = result.replace(/\n{3,}/g, '\n\n'); // max 2 newlines
+  result = result.replace(/^\s+$/gm, ''); // empty lines with spaces
+  result = result.replace(/\s+/g, ' ').trim(); // collapse to single spaces
+  return result;
 }
 
-// Basic fallback sanitization (if GPT-4o fails)
-function basicSanitize(text) {
-  let result = text;
-  result = result.replace(/\*\*([^*]+)\*\*/g, '$1');
-  result = result.replace(/\*([^*]+)\*/g, '$1');
-  result = result.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
-  result = result.replace(/\$\s*([\d.,]+)/g, '$1 dollar');
-  result = result.replace(/([+-]?)\s*([\d.,]+)\s*%/g, (m, sign, num) => {
-    const prefix = sign === '-' ? 'min ' : sign === '+' ? 'plus ' : '';
-    return `${prefix}${num} procent`;
-  });
-  result = result.replace(/:\s+/g, ', ');
-  result = result.replace(/\s+/g, ' ').trim();
-  return result;
+// Convert text to TTS-friendly format using GPT-4o-mini (safety net after system prompt)
+async function makeTTSFriendly(text) {
+  // First do a hard strip of any remaining markdown/emoji
+  const preClean = stripMarkdown(text);
+  
+  // If text is already clean enough (no special chars remain), skip the API call
+  const hasMarkdownArtifacts = /[#*_`>|]|^\s*-\s/m.test(preClean);
+  const hasEmoji = /[\u{1F300}-\u{1FAFF}]/u.test(preClean);
+  
+  if (!hasMarkdownArtifacts && !hasEmoji) {
+    console.log('Text already clean, skipping GPT-4o formatting');
+    return preClean;
+  }
+
+  const systemPrompt = `Je bent een tekst-formatter voor text-to-speech. Je ENIGE taak is de input herschrijven zodat het natuurlijk klinkt als gesproken tekst.
+
+REGELS:
+- Verwijder ALLE emoji
+- Verwijder ALLE markdown (headers, bold, italic, code, lijstjes, horizontal rules)
+- Maak er vloeiende, gesproken zinnen van — geen opsommingen
+- Schrijf prijzen uit: "$74.000" → "vierenzeventig duizend dollar"
+- Percentages: "-5%" → "min vijf procent"
+- Houd dezelfde taal als de input (Nederlands/Engels)
+- Houd dezelfde betekenis en persoonlijkheid
+- Output ALLEEN de geconverteerde tekst, niets anders`;
+
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: preClean }
+        ],
+        max_tokens: 800,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('GPT-4o TTS formatting failed:', response.status);
+      return preClean; // Pre-cleaned text is already decent
+    }
+
+    const result = await response.json();
+    return result.choices[0].message.content;
+  } catch (err) {
+    console.error('makeTTSFriendly error:', err);
+    return preClean;
+  }
 }
 
 // Text-to-Speech using ElevenLabs

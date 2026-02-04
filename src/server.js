@@ -6,14 +6,13 @@ const path = require('path');
 
 // Config
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const VOICE_ID = process.env.VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb'; // Default: George
+const OPENCLAW_API_URL = process.env.OPENCLAW_API_URL || 'http://45.76.249.108:18789';
+const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN;
+const VOICE_ID = process.env.VOICE_ID || 'TX3LPaxmHKxFdv7VOQHJ'; // Liam - Craby's voice
 const PORT = process.env.PORT || 3000;
 
-const SYSTEM_PROMPT = `You are Craby, a cyber-crab AI assistant 🦀. You're chill but direct, a bit chaotic, always ready to help.
-You speak Dutch and English fluently. Match the language the user speaks.
-Keep responses concise for voice - aim for 1-3 sentences unless more detail is needed.
-You have access to various skills like crypto trading, image generation, and more - but in this voice interface, focus on conversation.`;
+// Voice-specific system instruction (prepended to first message)
+const VOICE_CONTEXT = `[Voice Call] Keep responses concise for voice - aim for 1-3 sentences unless more detail is needed. The user is speaking to you via voice chat.`;
 
 const app = express();
 const server = http.createServer(app);
@@ -47,26 +46,36 @@ async function speechToText(audioBuffer) {
   return result.text;
 }
 
-// Get LLM response from OpenRouter
-async function getLLMResponse(messages) {
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+// Get response from OpenClaw (the REAL Craby!)
+async function getOpenClawResponse(messages, isFirstMessage = false) {
+  // Prepare messages for OpenClaw
+  const openclawMessages = messages.map((msg, idx) => {
+    // Add voice context to first user message
+    if (idx === 0 && msg.role === 'user' && isFirstMessage) {
+      return {
+        role: 'user',
+        content: `${VOICE_CONTEXT}\n\n${msg.content}`
+      };
+    }
+    return msg;
+  });
+
+  const response = await fetch(`${OPENCLAW_API_URL}/v1/chat/completions`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      'Authorization': `Bearer ${OPENCLAW_TOKEN}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'anthropic/claude-sonnet-4',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...messages,
-      ],
+      messages: openclawMessages,
       max_tokens: 500,
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`LLM failed: ${response.status}`);
+    const errorText = await response.text();
+    console.error('OpenClaw error:', response.status, errorText);
+    throw new Error(`OpenClaw failed: ${response.status}`);
   }
 
   const result = await response.json();
@@ -138,17 +147,18 @@ wss.on('connection', (ws) => {
       
       ws.send(JSON.stringify({ type: 'transcript', text: transcript }));
 
-      // 2. Add to conversation and get LLM response
+      // 2. Add to conversation and get OpenClaw response
       const history = conversations.get(conversationId);
+      const isFirstMessage = history.length === 0;
       history.push({ role: 'user', content: transcript });
       
       ws.send(JSON.stringify({ type: 'status', message: 'Thinking...' }));
-      const response = await getLLMResponse(history);
+      const response = await getOpenClawResponse(history, isFirstMessage);
       console.log('Response:', response);
       
       history.push({ role: 'assistant', content: response });
       
-      // Keep history manageable
+      // Keep history manageable (10 exchanges = 20 messages)
       if (history.length > 20) {
         history.splice(0, 2);
       }
@@ -176,5 +186,6 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Voice chat server running on port ${PORT}`);
+  console.log(`🦀 Craby Voice Chat running on port ${PORT}`);
+  console.log(`   OpenClaw API: ${OPENCLAW_API_URL}`);
 });

@@ -12,7 +12,16 @@ const VOICE_ID = process.env.VOICE_ID || 'TX3LPaxmHKxFdv7VOQHJ'; // Liam - Craby
 const PORT = process.env.PORT || 3000;
 
 // Voice-specific system instruction (prepended to first message)
-const VOICE_CONTEXT = `[Voice Call] Keep responses concise for voice - aim for 1-3 sentences unless more detail is needed. The user is speaking to you via voice chat.`;
+const VOICE_CONTEXT = `[Voice Call] You are on a VOICE call. Your response will be read aloud by text-to-speech.
+
+CRITICAL TTS RULES:
+- NO emoji's (they get read as "emoji crab" etc.)
+- NO special symbols like $, %, →, etc.
+- Write numbers naturally: "92 dollars" not "$92", "minus 8 percent" not "-8%"
+- NO parentheses with data like "(24h)" - just say "in the last 24 hours"
+- Keep responses conversational and natural for speaking
+- Aim for 1-3 sentences unless more detail is needed
+- Sound like a friend talking, not a data readout`;
 
 const app = express();
 const server = http.createServer(app);

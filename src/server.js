@@ -120,8 +120,11 @@ async function makeTTSFriendly(text) {
 RULES:
 - Remove ALL emoji (🦀📉 etc)
 - Remove ALL markdown (**bold**, *italic*, \`code\`)  
-- Convert "$74,138" to "74 duizend 138 dollar"
-- Convert "74.138,50" to "74 duizend 138 dollar 50"
+- Convert prices smartly based on size:
+  * Large prices ($1000+): round to whole dollars, e.g. "$74,138.50" → "vierenzeventig duizend honderd achtendertig dollar"
+  * Medium prices ($1-$999): keep max 2 decimals if relevant, e.g. "$16.33" → "zestien dollar drieëndertig"
+  * Small prices ($0.01-$0.99): say cents, e.g. "$0.45" → "vijfenveertig cent"
+  * Micro prices (<$0.01): keep significant decimals, e.g. "$0.000030" → "nul komma nul nul nul nul drie dollar"
 - Convert "-5%" to "min 5 procent"
 - Convert "(24h)" to "in de afgelopen 24 uur"
 - Remove colons used as separators: "Bitcoin: $74k" → "Bitcoin, 74 duizend dollar"
@@ -130,7 +133,10 @@ RULES:
 - Output ONLY the converted text, nothing else
 
 Example input: "**Bitcoin:** $73.144,70 📉 (-4,62% in 24u)"
-Example output: "Bitcoin, 73 duizend 144 dollar 70, min 4 komma 62 procent in de afgelopen 24 uur"`;
+Example output: "Bitcoin, drieënzeventig duizend honderd vierenveertig dollar, min 4 komma 62 procent in de afgelopen 24 uur"
+
+Example input: "PEPE: $0.00001234"
+Example output: "PEPE, nul komma nul nul nul nul één twee drie vier dollar"`;
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',

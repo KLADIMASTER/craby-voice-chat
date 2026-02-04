@@ -8,19 +8,9 @@ const path = require('path');
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const OPENCLAW_API_URL = process.env.OPENCLAW_API_URL || 'http://45.76.249.108:18789';
 const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const VOICE_ID = process.env.VOICE_ID || 'TX3LPaxmHKxFdv7VOQHJ'; // Liam - Craby's voice
 const PORT = process.env.PORT || 3000;
-
-// Voice-specific system instruction (prepended to EVERY message)
-const VOICE_CONTEXT = `[VOICE CALL - TTS OUTPUT]
-CRITICAL: Your response will be READ ALOUD. Follow these rules STRICTLY:
-- NO emoji (🦀📉 etc) - they sound terrible when read aloud
-- NO markdown (**bold**, *italic*) - TTS reads the asterisks
-- NO symbols ($, %, :) - say "74 dollar" not "$74", say "5 procent" not "5%"  
-- NO data formatting like "(24h)" - say "in the last 24 hours"
-- Talk naturally like in a phone call, 1-3 sentences max
-- Example BAD: "**BTC:** $74,138 📉 (-5%)"
-- Example GOOD: "Bitcoin staat op 74 duizend dollar, min 5 procent vandaag"`;
 
 const app = express();
 const server = http.createServer(app);
@@ -56,17 +46,6 @@ async function speechToText(audioBuffer) {
 
 // Get response from OpenClaw (the REAL Craby!)
 async function getOpenClawResponse(messages) {
-  // Prepare messages for OpenClaw - add voice context to EVERY user message
-  const openclawMessages = messages.map((msg) => {
-    if (msg.role === 'user') {
-      return {
-        role: 'user',
-        content: `${VOICE_CONTEXT}\n\n${msg.content}`
-      };
-    }
-    return msg;
-  });
-
   const response = await fetch(`${OPENCLAW_API_URL}/v1/chat/completions`, {
     method: 'POST',
     headers: {
@@ -74,7 +53,7 @@ async function getOpenClawResponse(messages) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      messages: openclawMessages,
+      messages: messages,
       max_tokens: 500,
     }),
   });
@@ -89,47 +68,66 @@ async function getOpenClawResponse(messages) {
   return result.choices[0].message.content;
 }
 
-// Sanitize text for TTS - remove symbols, emojis, make it speakable
-function sanitizeForTTS(text) {
+// Convert text to TTS-friendly format using GPT-4o
+async function makeTTSFriendly(text) {
+  const systemPrompt = `You are a text formatter for text-to-speech. Your ONLY job is to rewrite the input text so it sounds natural when spoken aloud.
+
+RULES:
+- Remove ALL emoji (🦀📉 etc)
+- Remove ALL markdown (**bold**, *italic*, \`code\`)  
+- Convert "$74,138" to "74 duizend 138 dollar"
+- Convert "74.138,50" to "74 duizend 138 dollar 50"
+- Convert "-5%" to "min 5 procent"
+- Convert "(24h)" to "in de afgelopen 24 uur"
+- Remove colons used as separators: "Bitcoin: $74k" → "Bitcoin, 74 duizend dollar"
+- Keep the same language as input (Dutch/English)
+- Keep the same meaning and personality
+- Output ONLY the converted text, nothing else
+
+Example input: "**Bitcoin:** $73.144,70 📉 (-4,62% in 24u)"
+Example output: "Bitcoin, 73 duizend 144 dollar 70, min 4 komma 62 procent in de afgelopen 24 uur"`;
+
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'openai/gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: text }
+      ],
+      max_tokens: 500,
+      temperature: 0.3,
+    }),
+  });
+
+  if (!response.ok) {
+    console.error('GPT-4o TTS formatting failed:', response.status);
+    // Fallback to basic sanitization if GPT-4o fails
+    return basicSanitize(text);
+  }
+
+  const result = await response.json();
+  return result.choices[0].message.content;
+}
+
+// Basic fallback sanitization (if GPT-4o fails)
+function basicSanitize(text) {
   let result = text;
-  
-  // Remove markdown formatting
-  result = result.replace(/\*\*([^*]+)\*\*/g, '$1'); // **bold** -> bold
-  result = result.replace(/\*([^*]+)\*/g, '$1');     // *italic* -> italic
-  result = result.replace(/__([^_]+)__/g, '$1');     // __underline__ -> underline
-  result = result.replace(/_([^_]+)_/g, '$1');       // _italic_ -> italic
-  result = result.replace(/`([^`]+)`/g, '$1');       // `code` -> code
-  result = result.replace(/~~([^~]+)~~/g, '$1');     // ~~strike~~ -> strike
-  
-  // Remove all emojis (comprehensive unicode ranges)
-  result = result.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]|[\u{1FA00}-\u{1FAFF}]|[\u{2300}-\u{23FF}]|[\u{2B50}]|[\u{203C}-\u{3299}]/gu, '');
-  
-  // Handle currency before numbers: $74.138 -> 74.138 dollar
+  result = result.replace(/\*\*([^*]+)\*\*/g, '$1');
+  result = result.replace(/\*([^*]+)\*/g, '$1');
+  result = result.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
   result = result.replace(/\$\s*([\d.,]+)/g, '$1 dollar');
-  result = result.replace(/€\s*([\d.,]+)/g, '$1 euro');
-  
-  // Handle percentages: -8.77% -> min 8.77 procent, 5% -> 5 procent
-  result = result.replace(/([+-]?)\s*([\d.,]+)\s*%/g, (match, sign, num) => {
+  result = result.replace(/([+-]?)\s*([\d.,]+)\s*%/g, (m, sign, num) => {
     const prefix = sign === '-' ? 'min ' : sign === '+' ? 'plus ' : '';
     return `${prefix}${num} procent`;
   });
-  
-  // Remove parentheses but keep content
-  result = result.replace(/\(([^)]+)\)/g, ', $1,');
-  
-  // Clean up colons in data readouts: "Bitcoin: $74" -> "Bitcoin, 74 dollar"
   result = result.replace(/:\s+/g, ', ');
-  
-  // Clean up arrows and special chars
-  result = result.replace(/[→←↑↓➜►▶•·]/g, '');
-  
-  // Clean up multiple spaces and punctuation
-  result = result.replace(/\s+/g, ' ');
-  result = result.replace(/,\s*,/g, ',');
-  result = result.replace(/\s+([.,!?])/g, '$1');
-  result = result.replace(/,\s*$/g, ''); // trailing comma
-  
-  return result.trim();
+  result = result.replace(/\s+/g, ' ').trim();
+  return result;
 }
 
 // Text-to-Speech using ElevenLabs
@@ -165,7 +163,6 @@ wss.on('connection', (ws) => {
 
   ws.on('message', async (data, isBinary) => {
     if (!isBinary) {
-      // Text message (could be control commands)
       const msg = data.toString();
       console.log('Received text:', msg);
       
@@ -197,30 +194,33 @@ wss.on('connection', (ws) => {
       
       ws.send(JSON.stringify({ type: 'transcript', text: transcript }));
 
-      // 2. Add to conversation and get OpenClaw response
+      // 2. Get response from OpenClaw (the real Craby)
       const history = conversations.get(conversationId);
       history.push({ role: 'user', content: transcript });
       
       ws.send(JSON.stringify({ type: 'status', message: 'Thinking...' }));
       const response = await getOpenClawResponse(history);
-      console.log('Response:', response);
+      console.log('Craby response:', response);
       
       history.push({ role: 'assistant', content: response });
       
-      // Keep history manageable (10 exchanges = 20 messages)
+      // Keep history manageable
       if (history.length > 20) {
         history.splice(0, 2);
       }
       
+      // Send original response to display
       ws.send(JSON.stringify({ type: 'response', text: response }));
 
-      // 3. Sanitize and Text to Speech
-      ws.send(JSON.stringify({ type: 'status', message: 'Generating voice...' }));
-      const spokenText = sanitizeForTTS(response);
+      // 3. Make TTS-friendly via GPT-4o
+      ws.send(JSON.stringify({ type: 'status', message: 'Formatting for voice...' }));
+      const spokenText = await makeTTSFriendly(response);
       console.log('TTS text:', spokenText);
+
+      // 4. Text to Speech
+      ws.send(JSON.stringify({ type: 'status', message: 'Generating voice...' }));
       const audioBuffer = await textToSpeech(spokenText);
       
-      // Send audio as binary
       ws.send(audioBuffer);
       ws.send(JSON.stringify({ type: 'status', message: 'Ready' }));
       
@@ -239,4 +239,5 @@ wss.on('connection', (ws) => {
 server.listen(PORT, () => {
   console.log(`🦀 Craby Voice Chat running on port ${PORT}`);
   console.log(`   OpenClaw API: ${OPENCLAW_API_URL}`);
+  console.log(`   TTS Formatter: GPT-4o-mini via OpenRouter`);
 });

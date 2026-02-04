@@ -146,6 +146,70 @@
     }
     
     /* Transcript */
+    /* Speed slider */
+    .speed-control {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin: 16px 0;
+      padding: 12px 20px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+    }
+    
+    .speed-label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      min-width: 50px;
+    }
+    
+    .speed-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 120px;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--glass-border);
+      outline: none;
+      cursor: pointer;
+    }
+    
+    .speed-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    
+    .speed-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+    
+    .speed-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+    
+    .speed-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--accent);
+      min-width: 45px;
+      text-align: right;
+    }
+    
     .transcript-container {
       background: var(--glass-bg);
       backdrop-filter: blur(20px);
@@ -377,6 +441,14 @@
         </div>
       </div>
       
+      <!-- Speed slider -->
+      <div class="speed-control">
+        <span class="speed-label">Snelheid</span>
+        <input type="range" class="speed-slider" id="speedSlider" 
+               min="0.5" max="2" step="0.05" value="1.25">
+        <span class="speed-value" id="speedValue">1.25x</span>
+      </div>
+      
       <!-- Transcript -->
       <div class="transcript-container" id="transcript"></div>
       
@@ -457,6 +529,25 @@
     const btnHangup = document.getElementById('btnHangup');
     const callActions = document.getElementById('callActions');
     const inCallActions = document.getElementById('inCallActions');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValue = document.getElementById('speedValue');
+    
+    // ==========================================
+    // Playback speed control
+    // ==========================================
+    
+    // Load saved speed or default to 1.25
+    const savedSpeed = parseFloat(localStorage.getItem('callPlaybackSpeed')) || 1.25;
+    speedSlider.value = savedSpeed;
+    speedValue.textContent = savedSpeed.toFixed(2) + 'x';
+    audioPlayer.playbackRate = savedSpeed;
+    
+    speedSlider.addEventListener('input', () => {
+      const speed = parseFloat(speedSlider.value);
+      speedValue.textContent = speed.toFixed(2) + 'x';
+      audioPlayer.playbackRate = speed;
+      localStorage.setItem('callPlaybackSpeed', speed);
+    });
     
     // State
     let ws = null;
@@ -620,6 +711,8 @@
       
       const audioUrl = audioQueue.shift();
       audioPlayer.src = audioUrl;
+      // Ensure playback speed is applied
+      audioPlayer.playbackRate = parseFloat(speedSlider.value);
       await audioPlayer.play();
     }
     

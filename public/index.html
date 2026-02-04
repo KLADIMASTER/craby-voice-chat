@@ -113,6 +113,12 @@
       border-left: 3px solid #ff6b6b;
     }
     
+    .message.assistant.ack {
+      background: rgba(255, 217, 61, 0.1);
+      border-left: 3px solid #ffd93d;
+      font-style: italic;
+    }
+    
     .message-label {
       font-size: 0.75rem;
       color: #8892b0;
@@ -146,17 +152,21 @@
   </div>
   
   <audio id="audioPlayer"></audio>
+  <audio id="holdMusic" loop></audio>
   
   <script>
     const talkBtn = document.getElementById('talkBtn');
     const statusEl = document.getElementById('status');
     const transcriptEl = document.getElementById('transcript');
     const audioPlayer = document.getElementById('audioPlayer');
+    const holdMusic = document.getElementById('holdMusic');
     
     let ws;
     let mediaRecorder;
     let audioChunks = [];
     let isRecording = false;
+    let audioQueue = [];
+    let isPlayingAudio = false;
     
     // Connect to WebSocket
     function connect() {
@@ -180,11 +190,10 @@
       
       ws.onmessage = async (event) => {
         if (event.data instanceof Blob) {
-          // Audio response
+          // Audio response - queue it
           const audioUrl = URL.createObjectURL(event.data);
-          audioPlayer.src = audioUrl;
-          audioPlayer.play();
-          setStatus('Ready', 'connected');
+          audioQueue.push(audioUrl);
+          playNextAudio();
         } else {
           // JSON message
           const msg = JSON.parse(event.data);
@@ -193,12 +202,55 @@
             setStatus(msg.message, 'processing');
           } else if (msg.type === 'transcript') {
             addMessage('You', msg.text, 'user');
+          } else if (msg.type === 'acknowledgment') {
+            // Quick acknowledgment before main response
+            addMessage('Craby', msg.text, 'assistant ack');
           } else if (msg.type === 'response') {
             addMessage('Craby', msg.text, 'assistant');
+          } else if (msg.type === 'hold_music') {
+            if (msg.action === 'start') {
+              holdMusic.src = msg.url;
+              holdMusic.volume = 0.3; // Soft background volume
+              // Wait for acknowledgment audio to finish, then start music
+              setTimeout(() => {
+                if (!holdMusic.paused) return; // Already stopped
+                holdMusic.play().catch(() => {});
+              }, 2500); // Give time for ack TTS to play
+              setStatus('🎵 Hold music...', 'processing');
+            } else if (msg.action === 'stop') {
+              holdMusic.pause();
+              holdMusic.currentTime = 0;
+            }
           } else if (msg.type === 'error') {
             setStatus('Error: ' + msg.message, 'disconnected');
+            holdMusic.pause();
           }
         }
+      };
+    }
+    
+    // Play queued audio sequentially
+    function playNextAudio() {
+      if (isPlayingAudio || audioQueue.length === 0) return;
+      
+      isPlayingAudio = true;
+      const audioUrl = audioQueue.shift();
+      
+      // Stop hold music when playing response
+      if (audioQueue.length === 0) {
+        holdMusic.pause();
+        holdMusic.currentTime = 0;
+      }
+      
+      audioPlayer.src = audioUrl;
+      audioPlayer.play();
+      
+      audioPlayer.onended = () => {
+        isPlayingAudio = false;
+        if (audioQueue.length === 0) {
+          setStatus('Ready', 'connected');
+        }
+        playNextAudio();
       };
     }
     

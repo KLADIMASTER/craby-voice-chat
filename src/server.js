@@ -12,6 +12,18 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const VOICE_ID = process.env.VOICE_ID || 'TX3LPaxmHKxFdv7VOQHJ'; // Liam - Craby's voice
 const PORT = process.env.PORT || 3000;
 
+// Hold music URL (smooth jazz, 90 seconds)
+const HOLD_MUSIC_URL = 'https://ik.imagekit.io/wurk/solana/music/solana-music-90s-1770226631075_mo4R-Lc3j.mp3';
+
+// Quick acknowledgment phrases (rotates randomly)
+const ACKNOWLEDGMENTS = [
+  "Momentje, ik zoek het even voor je op.",
+  "Even kijken, een momentje.",
+  "Ik ga het voor je uitzoeken, momentje.",
+  "Goeie vraag, even checken.",
+  "Ik duik er even in, wacht.",
+];
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
@@ -194,11 +206,23 @@ wss.on('connection', (ws) => {
       
       ws.send(JSON.stringify({ type: 'transcript', text: transcript }));
 
-      // 2. Get response from OpenClaw (the real Craby)
+      // 2. Send quick acknowledgment + start hold music
+      const ack = ACKNOWLEDGMENTS[Math.floor(Math.random() * ACKNOWLEDGMENTS.length)];
+      console.log('Sending acknowledgment:', ack);
+      
+      ws.send(JSON.stringify({ type: 'status', message: 'Quick response...' }));
+      const ackAudio = await textToSpeech(ack);
+      ws.send(JSON.stringify({ type: 'acknowledgment', text: ack }));
+      ws.send(ackAudio);
+      
+      // Tell client to start hold music while we think
+      ws.send(JSON.stringify({ type: 'hold_music', action: 'start', url: HOLD_MUSIC_URL }));
+
+      // 3. Get response from OpenClaw (the real Craby) - this may take a while
       const history = conversations.get(conversationId);
       history.push({ role: 'user', content: transcript });
       
-      ws.send(JSON.stringify({ type: 'status', message: 'Thinking...' }));
+      ws.send(JSON.stringify({ type: 'status', message: 'Craby is thinking...' }));
       const response = await getOpenClawResponse(history);
       console.log('Craby response:', response);
       
@@ -209,15 +233,18 @@ wss.on('connection', (ws) => {
         history.splice(0, 2);
       }
       
+      // Stop hold music - response is ready!
+      ws.send(JSON.stringify({ type: 'hold_music', action: 'stop' }));
+      
       // Send original response to display
       ws.send(JSON.stringify({ type: 'response', text: response }));
 
-      // 3. Make TTS-friendly via GPT-4o
+      // 4. Make TTS-friendly via GPT-4o
       ws.send(JSON.stringify({ type: 'status', message: 'Formatting for voice...' }));
       const spokenText = await makeTTSFriendly(response);
       console.log('TTS text:', spokenText);
 
-      // 4. Text to Speech
+      // 5. Text to Speech
       ws.send(JSON.stringify({ type: 'status', message: 'Generating voice...' }));
       const audioBuffer = await textToSpeech(spokenText);
       

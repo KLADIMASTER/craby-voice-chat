@@ -387,6 +387,7 @@
   
   <!-- Audio player (hidden) -->
   <audio id="audioPlayer"></audio>
+  <audio id="holdMusic" loop></audio>
   
   <script>
     // Elements
@@ -400,6 +401,7 @@
     const errorEl = document.getElementById('error');
     const headerStatus = document.getElementById('headerStatus');
     const audioPlayer = document.getElementById('audioPlayer');
+    const holdMusic = document.getElementById('holdMusic');
     const speedBtns = document.querySelectorAll('.speed-btn');
     
     // State
@@ -500,6 +502,12 @@
         if (event.data instanceof Blob) {
           // Audio response - add as voice message
           typingEl.classList.add('hidden');
+          
+          // Stop hold music immediately
+          holdMusic.pause();
+          holdMusic.currentTime = 0;
+          headerStatus.textContent = 'Online';
+          
           const audioUrl = URL.createObjectURL(event.data);
           
           // Get audio duration
@@ -538,7 +546,30 @@
             typingEl.classList.add('hidden');
             showError(msg.message);
           } else if (msg.type === 'hold_music') {
-            // Ignore hold music for voice message mode
+            if (msg.action === 'start') {
+              holdMusic.src = msg.url;
+              holdMusic.volume = 0.25;
+              // Start after acknowledgment plays
+              setTimeout(() => {
+                if (holdMusic.src && holdMusic.paused) {
+                  holdMusic.play().catch(() => {});
+                  headerStatus.textContent = '🎵 Even geduld...';
+                }
+              }, 2500);
+            } else if (msg.action === 'stop') {
+              // Fade out
+              const fade = setInterval(() => {
+                if (holdMusic.volume > 0.05) {
+                  holdMusic.volume -= 0.05;
+                } else {
+                  clearInterval(fade);
+                  holdMusic.pause();
+                  holdMusic.currentTime = 0;
+                  holdMusic.volume = 0.25;
+                  headerStatus.textContent = 'Online';
+                }
+              }, 50);
+            }
           }
         }
       };

@@ -14,191 +14,274 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
       color: #fff;
       padding: 20px;
-      overflow: hidden;
-      user-select: none;
-      -webkit-user-select: none;
+      padding-bottom: 200px;
     }
     
-    .container {
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
       width: 100%;
-      max-width: 400px;
-      text-align: center;
+      max-width: 500px;
+      padding: 15px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 20px;
     }
     
-    /* Back button */
     .back-btn {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      background: rgba(255,255,255,0.1);
+      background: none;
       border: none;
-      border-radius: 50%;
-      width: 44px;
-      height: 44px;
-      font-size: 1.2rem;
+      color: #64ffda;
+      font-size: 1.5rem;
       cursor: pointer;
-      color: #fff;
-      transition: background 0.2s;
+      padding: 5px;
     }
     
-    .back-btn:hover {
-      background: rgba(255,255,255,0.2);
-    }
-    
-    /* Avatar */
-    .avatar {
-      width: 100px;
-      height: 100px;
+    .header-avatar {
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
       background: linear-gradient(145deg, #ff6b35, #ff8c42);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 50px;
-      margin: 0 auto 15px;
-      box-shadow: 0 10px 40px rgba(255, 107, 53, 0.3);
-      transition: all 0.3s ease;
+      font-size: 28px;
     }
     
-    .avatar.speaking {
-      background: linear-gradient(145deg, #9b59b6, #8e44ad);
-      box-shadow: 0 10px 50px rgba(168, 85, 247, 0.5);
-      animation: speak-pulse 0.5s infinite;
+    .header-info h1 {
+      font-size: 1.3rem;
+      font-weight: 600;
     }
     
-    @keyframes speak-pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-    
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 5px;
-    }
-    
-    .subtitle {
-      color: #8892b0;
-      margin-bottom: 20px;
-      font-size: 0.9rem;
-    }
-    
-    /* Status */
-    .status {
-      font-size: 1rem;
-      margin-bottom: 15px;
-      min-height: 24px;
+    .header-info .status {
+      font-size: 0.85rem;
       color: #64ffda;
     }
     
-    .status.recording { color: #ff6b6b; }
-    .status.processing { color: #ffd93d; }
-    .status.playing { color: #a855f7; }
+    /* Messages container */
+    .messages {
+      flex: 1;
+      width: 100%;
+      max-width: 500px;
+      overflow-y: auto;
+      padding: 10px 0;
+    }
     
-    /* Visualizer */
-    .visualizer {
+    .message {
+      max-width: 85%;
+      margin: 10px 0;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      position: relative;
+    }
+    
+    .message.user {
+      background: linear-gradient(145deg, #64ffda, #4ade80);
+      color: #0f0f23;
+      margin-left: auto;
+      border-bottom-right-radius: 4px;
+    }
+    
+    .message.assistant {
+      background: rgba(255,255,255,0.1);
+      border-bottom-left-radius: 4px;
+    }
+    
+    .message .time {
+      font-size: 0.7rem;
+      opacity: 0.6;
+      margin-top: 5px;
+      text-align: right;
+    }
+    
+    .message.user .time {
+      color: #0f0f23;
+    }
+    
+    /* Audio message styling */
+    .message.audio {
       display: flex;
-      justify-content: center;
       align-items: center;
-      height: 60px;
+      gap: 10px;
+    }
+    
+    .message.audio .play-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.2);
+      color: inherit;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .message.audio .waveform {
+      flex: 1;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    
+    .message.audio .waveform .bar {
+      width: 3px;
+      background: currentColor;
+      opacity: 0.6;
+      border-radius: 2px;
+    }
+    
+    .message.audio .duration {
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+    
+    /* Typing indicator */
+    .typing {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px;
+      color: #8892b0;
+    }
+    
+    .typing-dots {
+      display: flex;
       gap: 4px;
-      margin: 20px 0;
     }
     
-    .bar {
-      width: 6px;
-      background: linear-gradient(to top, #64ffda, #4ade80);
-      border-radius: 3px;
-      transition: height 0.05s ease;
-      min-height: 4px;
+    .typing-dots span {
+      width: 8px;
+      height: 8px;
+      background: #64ffda;
+      border-radius: 50%;
+      animation: bounce 1.4s infinite;
     }
     
-    .bar.recording-bar {
-      background: linear-gradient(to top, #ff6b6b, #ff8585);
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-8px); }
     }
     
-    .bar.playing-bar {
-      background: linear-gradient(to top, #a855f7, #c084fc);
+    /* Recording bar (fixed bottom) */
+    .record-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 20px;
+      background: linear-gradient(to top, #0f0f23 0%, transparent 100%);
+      padding-top: 60px;
+    }
+    
+    .record-container {
+      max-width: 500px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
     }
     
     /* Record button */
     .record-btn {
-      width: 100px;
-      height: 100px;
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
       border: none;
-      background: linear-gradient(145deg, #64ffda, #4ade80);
-      box-shadow: 0 10px 40px rgba(100, 255, 218, 0.3);
-      font-size: 2.5rem;
+      background: linear-gradient(145deg, #9b59b6, #8e44ad);
+      box-shadow: 0 8px 30px rgba(155, 89, 182, 0.5);
+      font-size: 2rem;
       cursor: pointer;
       transition: all 0.2s ease;
-      margin: 20px auto;
       display: flex;
       align-items: center;
       justify-content: center;
-      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    
+    .record-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 12px 40px rgba(155, 89, 182, 0.6);
     }
     
     .record-btn:active,
     .record-btn.recording {
-      transform: scale(1.1);
-      background: linear-gradient(145deg, #ff6b6b, #ff8585);
-      box-shadow: 0 10px 50px rgba(255, 107, 107, 0.5);
+      transform: scale(0.95);
+      background: linear-gradient(145deg, #e74c3c, #c0392b);
+      box-shadow: 0 8px 30px rgba(231, 76, 60, 0.5);
     }
     
-    .record-btn.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: scale(1);
+    .record-btn.recording {
+      animation: pulse-record 1s infinite;
     }
     
-    /* Transcript */
-    .transcript {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 15px;
-      padding: 15px;
-      margin: 20px 0;
-      max-height: 200px;
-      overflow-y: auto;
-      text-align: left;
+    @keyframes pulse-record {
+      0%, 100% { transform: scale(0.95); }
+      50% { transform: scale(1); }
     }
     
-    .message {
-      margin: 10px 0;
-      padding: 10px 14px;
-      border-radius: 12px;
-      font-size: 0.9rem;
-      line-height: 1.4;
-    }
-    
-    .message.user {
-      background: rgba(100, 255, 218, 0.1);
-      border-left: 3px solid #64ffda;
-    }
-    
-    .message.assistant {
-      background: rgba(168, 85, 247, 0.1);
-      border-left: 3px solid #a855f7;
-    }
-    
-    .message .label {
-      font-size: 0.75rem;
-      color: #8892b0;
-      margin-bottom: 4px;
-    }
-    
-    /* Hint */
-    .hint {
+    /* Record hint */
+    .record-hint {
+      text-align: center;
       color: #8892b0;
       font-size: 0.85rem;
       margin-top: 15px;
     }
     
-    /* Error */
-    .error-banner {
+    .record-hint.recording {
+      color: #e74c3c;
+    }
+    
+    /* Recording timer */
+    .record-timer {
+      font-size: 1.5rem;
+      font-weight: 300;
+      color: #e74c3c;
+      min-width: 60px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .record-timer.visible {
+      opacity: 1;
+    }
+    
+    /* Visualizer (while recording) */
+    .record-visualizer {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      height: 40px;
+      min-width: 60px;
+    }
+    
+    .record-visualizer .bar {
+      width: 4px;
+      background: #e74c3c;
+      border-radius: 2px;
+      transition: height 0.1s ease;
+    }
+    
+    .hidden { display: none !important; }
+    
+    /* Error message */
+    .error {
       position: fixed;
       top: 20px;
       left: 50%;
@@ -212,208 +295,268 @@
       transition: opacity 0.3s;
     }
     
-    .error-banner.visible {
+    .error.visible {
       opacity: 1;
+    }
+    
+    /* Speed buttons */
+    .speed-btns {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      justify-content: center;
+    }
+    
+    .speed-btn {
+      padding: 6px 12px;
+      border-radius: 15px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: transparent;
+      color: #8892b0;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .speed-btn.active {
+      background: #64ffda;
+      color: #0f0f23;
+      border-color: #64ffda;
     }
   </style>
 </head>
 <body>
-  <button class="back-btn" onclick="location.href='/'">←</button>
+  <!-- Error banner -->
+  <div class="error" id="error"></div>
   
-  <div class="error-banner" id="errorBanner"></div>
-  
-  <div class="container">
-    <div class="avatar" id="avatar">🦀</div>
-    <h1>Voice Message</h1>
-    <p class="subtitle">Houd ingedrukt om te praten</p>
-    
-    <div class="status" id="status">Klaar</div>
-    
-    <div class="visualizer" id="visualizer">
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
+  <!-- Header -->
+  <div class="header">
+    <button class="back-btn" onclick="window.location='/'">←</button>
+    <div class="header-avatar">🦀</div>
+    <div class="header-info">
+      <h1>Craby</h1>
+      <div class="status" id="headerStatus">Online</div>
     </div>
-    
-    <button class="record-btn" id="recordBtn">🎤</button>
-    
-    <div class="transcript" id="transcript"></div>
-    
-    <p class="hint">💡 Houd de knop ingedrukt, spreek, en laat los om te versturen</p>
   </div>
   
+  <!-- Messages -->
+  <div class="messages" id="messages">
+    <div class="message assistant">
+      Hey! Houd de knop ingedrukt om een voice message te sturen. Ik luister! 🦀
+      <div class="time">Nu</div>
+    </div>
+  </div>
+  
+  <!-- Typing indicator (hidden by default) -->
+  <div class="typing hidden" id="typing">
+    <div class="typing-dots">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    <span>Craby typt...</span>
+  </div>
+  
+  <!-- Record bar -->
+  <div class="record-bar">
+    <div class="record-container">
+      <div class="record-visualizer" id="visualizer">
+        <div class="bar" style="height: 10px;"></div>
+        <div class="bar" style="height: 10px;"></div>
+        <div class="bar" style="height: 10px;"></div>
+        <div class="bar" style="height: 10px;"></div>
+        <div class="bar" style="height: 10px;"></div>
+        <div class="bar" style="height: 10px;"></div>
+        <div class="bar" style="height: 10px;"></div>
+        <div class="bar" style="height: 10px;"></div>
+      </div>
+      
+      <button class="record-btn" id="recordBtn">🎤</button>
+      
+      <div class="record-timer" id="timer">0:00</div>
+    </div>
+    
+    <div class="record-hint" id="hint">Houd ingedrukt om op te nemen</div>
+    
+    <div class="speed-btns">
+      <button class="speed-btn" data-speed="1">1x</button>
+      <button class="speed-btn active" data-speed="1.25">1.25x</button>
+      <button class="speed-btn" data-speed="1.5">1.5x</button>
+    </div>
+  </div>
+  
+  <!-- Audio player (hidden) -->
   <audio id="audioPlayer"></audio>
   
   <script>
     // Elements
-    const avatar = document.getElementById('avatar');
-    const statusEl = document.getElementById('status');
+    const messagesEl = document.getElementById('messages');
+    const typingEl = document.getElementById('typing');
     const recordBtn = document.getElementById('recordBtn');
+    const timerEl = document.getElementById('timer');
+    const hintEl = document.getElementById('hint');
     const visualizer = document.getElementById('visualizer');
     const bars = visualizer.querySelectorAll('.bar');
-    const transcript = document.getElementById('transcript');
+    const errorEl = document.getElementById('error');
+    const headerStatus = document.getElementById('headerStatus');
     const audioPlayer = document.getElementById('audioPlayer');
-    const errorBanner = document.getElementById('errorBanner');
+    const speedBtns = document.querySelectorAll('.speed-btn');
     
     // State
     let ws = null;
     let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    let recordStartTime = null;
+    let timerInterval = null;
     let audioContext = null;
     let analyser = null;
     let stream = null;
-    let audioChunks = [];
-    let isRecording = false;
-    let isPlaying = false;
-    let isProcessing = false;
-    let animFrame = null;
+    let playbackSpeed = 1.25;
     
     // Show error
     function showError(msg) {
-      errorBanner.textContent = msg;
-      errorBanner.classList.add('visible');
-      setTimeout(() => errorBanner.classList.remove('visible'), 5000);
+      errorEl.textContent = msg;
+      errorEl.classList.add('visible');
+      setTimeout(() => errorEl.classList.remove('visible'), 4000);
     }
     
-    // Set status
-    function setStatus(text, className = '') {
-      statusEl.textContent = text;
-      statusEl.className = 'status ' + className;
+    // Format time
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
     
-    // Update visualizer
-    function updateVisualizer(volumes, mode = 'idle') {
-      bars.forEach((bar, i) => {
-        const vol = volumes[i % volumes.length] || 0;
-        const height = Math.max(4, vol * 50);
-        bar.style.height = height + 'px';
-        
-        bar.className = 'bar';
-        if (mode === 'recording') bar.classList.add('recording-bar');
-        if (mode === 'playing') bar.classList.add('playing-bar');
-      });
+    // Get current time string
+    function getTimeString() {
+      return new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
     }
     
-    // Add message to transcript
-    function addMessage(who, text) {
+    // Add message to chat
+    function addMessage(who, content, isAudio = false, audioUrl = null, duration = 0) {
       const div = document.createElement('div');
-      div.className = 'message ' + (who === 'user' ? 'user' : 'assistant');
-      div.innerHTML = `<div class="label">${who === 'user' ? 'Jij' : 'Craby'}</div>${text}`;
-      transcript.appendChild(div);
-      transcript.scrollTop = transcript.scrollHeight;
+      div.className = `message ${who}${isAudio ? ' audio' : ''}`;
+      
+      if (isAudio && audioUrl) {
+        // Generate random waveform heights
+        const waveformBars = Array(20).fill(0).map(() => 
+          Math.floor(Math.random() * 20 + 8)
+        ).map(h => `<div class="bar" style="height: ${h}px;"></div>`).join('');
+        
+        div.innerHTML = `
+          <button class="play-btn" data-url="${audioUrl}">▶️</button>
+          <div class="waveform">${waveformBars}</div>
+          <span class="duration">${formatTime(duration)}</span>
+        `;
+        
+        // Add play functionality
+        const playBtn = div.querySelector('.play-btn');
+        playBtn.onclick = () => {
+          if (audioPlayer.src === audioUrl && !audioPlayer.paused) {
+            audioPlayer.pause();
+            playBtn.textContent = '▶️';
+          } else {
+            audioPlayer.src = audioUrl;
+            audioPlayer.playbackRate = playbackSpeed;
+            audioPlayer.play();
+            playBtn.textContent = '⏸️';
+            
+            audioPlayer.onended = () => {
+              playBtn.textContent = '▶️';
+            };
+          }
+        };
+      } else {
+        div.innerHTML = `${content}<div class="time">${getTimeString()}</div>`;
+      }
+      
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
     }
     
     // Connect WebSocket
-    function connectWS() {
-      return new Promise((resolve, reject) => {
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        ws = new WebSocket(`${protocol}//${location.host}`);
-        
-        ws.onopen = () => {
-          console.log('Connected');
-          resolve();
-        };
-        
-        ws.onerror = (err) => {
-          console.error('WS error:', err);
-          reject(err);
-        };
-        
-        ws.onclose = () => {
-          console.log('Disconnected');
-          // Reconnect after delay
-          setTimeout(() => {
-            if (!isRecording) connectWS().catch(console.error);
-          }, 2000);
-        };
-        
-        ws.onmessage = async (event) => {
-          if (event.data instanceof Blob) {
-            // Audio response
-            isPlaying = true;
-            isProcessing = false;
-            avatar.classList.add('speaking');
-            setStatus('Craby spreekt...', 'playing');
+    function connect() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}`);
+      
+      ws.onopen = () => {
+        console.log('Connected');
+        headerStatus.textContent = 'Online';
+      };
+      
+      ws.onclose = () => {
+        console.log('Disconnected');
+        headerStatus.textContent = 'Verbinden...';
+        setTimeout(connect, 2000);
+      };
+      
+      ws.onerror = (err) => {
+        console.error('WS error:', err);
+        showError('Verbindingsfout');
+      };
+      
+      ws.onmessage = async (event) => {
+        if (event.data instanceof Blob) {
+          // Audio response - add as voice message
+          typingEl.classList.add('hidden');
+          const audioUrl = URL.createObjectURL(event.data);
+          
+          // Get audio duration
+          const tempAudio = new Audio(audioUrl);
+          tempAudio.onloadedmetadata = () => {
+            addMessage('assistant', '', true, audioUrl, tempAudio.duration);
             
-            const audioUrl = URL.createObjectURL(event.data);
+            // Auto-play response
             audioPlayer.src = audioUrl;
+            audioPlayer.playbackRate = playbackSpeed;
             audioPlayer.play();
-            
-            // Animate visualizer while playing
-            animatePlayback();
-          } else {
-            const msg = JSON.parse(event.data);
-            console.log('Message:', msg);
-            
-            if (msg.type === 'transcript') {
-              addMessage('user', msg.text);
-            } else if (msg.type === 'acknowledgment') {
-              addMessage('assistant', msg.text);
-            } else if (msg.type === 'response') {
-              addMessage('assistant', msg.text);
-            } else if (msg.type === 'hold_music') {
-              // Ignore hold music in voice message mode
-            } else if (msg.type === 'status') {
-              if (msg.message === 'No speech detected') {
-                isProcessing = false;
-                setStatus('Geen spraak gedetecteerd');
-                setTimeout(() => setStatus('Klaar'), 2000);
-              } else if (msg.message !== 'Ready') {
-                setStatus(msg.message, 'processing');
-              }
-            } else if (msg.type === 'error') {
-              showError(msg.message);
-              isProcessing = false;
-              setStatus('Fout opgetreden');
-              recordBtn.classList.remove('disabled');
+          };
+        } else {
+          const msg = JSON.parse(event.data);
+          
+          if (msg.type === 'transcript') {
+            // Show what user said
+            addMessage('user', msg.text);
+          } else if (msg.type === 'response') {
+            // Text response (before audio)
+            typingEl.classList.add('hidden');
+            addMessage('assistant', msg.text);
+          } else if (msg.type === 'acknowledgment') {
+            // Quick acknowledgment
+            typingEl.classList.add('hidden');
+          } else if (msg.type === 'status') {
+            if (msg.message === 'Transcribing...') {
+              typingEl.querySelector('span:last-child').textContent = 'Craby luistert...';
+              typingEl.classList.remove('hidden');
+            } else if (msg.message === 'Craby is thinking...') {
+              typingEl.querySelector('span:last-child').textContent = 'Craby denkt na...';
+            } else if (msg.message.includes('voice')) {
+              typingEl.querySelector('span:last-child').textContent = 'Craby spreekt in...';
             }
+          } else if (msg.type === 'error') {
+            typingEl.classList.add('hidden');
+            showError(msg.message);
+          } else if (msg.type === 'hold_music') {
+            // Ignore hold music for voice message mode
           }
-        };
-      });
+        }
+      };
     }
     
-    // Animate playback visualizer
-    function animatePlayback() {
-      if (!isPlaying) return;
-      
-      // Fake audio visualization during playback
-      const fakeVolumes = Array(12).fill(0).map(() => 0.2 + Math.random() * 0.6);
-      updateVisualizer(fakeVolumes, 'playing');
-      
-      animFrame = requestAnimationFrame(animatePlayback);
-    }
-    
-    // Audio finished
-    audioPlayer.onended = () => {
-      isPlaying = false;
-      avatar.classList.remove('speaking');
-      setStatus('Klaar');
-      updateVisualizer(Array(12).fill(0));
-      cancelAnimationFrame(animFrame);
-      recordBtn.classList.remove('disabled');
-    };
-    
-    // Initialize microphone
-    async function initMic() {
+    // Setup audio recording
+    async function setupRecording() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        // Setup analyser for visualizer
+        // Setup analyzer for visualizer
         audioContext = new AudioContext();
         analyser = audioContext.createAnalyser();
         const source = audioContext.createMediaStreamSource(stream);
         source.connect(analyser);
         analyser.fftSize = 256;
         
-        // Setup media recorder
+        // Setup recorder
         mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
         
         mediaRecorder.ondataavailable = (e) => {
@@ -421,17 +564,22 @@
         };
         
         mediaRecorder.onstop = () => {
-          if (audioChunks.length > 0 && ws && ws.readyState === WebSocket.OPEN) {
-            const blob = new Blob(audioChunks, { type: 'audio/webm' });
-            ws.send(blob);
-            isProcessing = true;
-            setStatus('Verwerken...', 'processing');
-            recordBtn.classList.add('disabled');
+          if (audioChunks.length > 0) {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            
+            // Only send if recording was > 0.5s
+            const duration = (Date.now() - recordStartTime) / 1000;
+            if (duration >= 0.5) {
+              ws.send(audioBlob);
+              
+              // Show "sending" state
+              typingEl.querySelector('span:last-child').textContent = 'Verzenden...';
+              typingEl.classList.remove('hidden');
+            }
           }
           audioChunks = [];
         };
         
-        console.log('Mic initialized');
         return true;
       } catch (err) {
         console.error('Mic error:', err);
@@ -441,31 +589,31 @@
     }
     
     // Start recording
-    function startRecording() {
-      if (isProcessing || isPlaying || !mediaRecorder) return;
+    async function startRecording() {
+      if (!mediaRecorder) {
+        const success = await setupRecording();
+        if (!success) return;
+      }
       
       isRecording = true;
       audioChunks = [];
+      recordStartTime = Date.now();
+      
       mediaRecorder.start();
-      
       recordBtn.classList.add('recording');
-      setStatus('Opnemen...', 'recording');
+      recordBtn.textContent = '🔴';
+      hintEl.textContent = 'Opnemen...';
+      hintEl.classList.add('recording');
+      timerEl.classList.add('visible');
       
-      // Start visualizer animation
-      animateRecording();
-    }
-    
-    // Animate recording visualizer
-    function animateRecording() {
-      if (!isRecording) return;
+      // Start timer
+      timerInterval = setInterval(() => {
+        const elapsed = (Date.now() - recordStartTime) / 1000;
+        timerEl.textContent = formatTime(elapsed);
+      }, 100);
       
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      analyser.getByteFrequencyData(dataArray);
-      
-      const volumes = Array.from(dataArray.slice(0, 12)).map(v => v / 255);
-      updateVisualizer(volumes, 'recording');
-      
-      animFrame = requestAnimationFrame(animateRecording);
+      // Start visualizer
+      updateVisualizer();
     }
     
     // Stop recording
@@ -473,57 +621,79 @@
       if (!isRecording) return;
       
       isRecording = false;
-      recordBtn.classList.remove('recording');
-      cancelAnimationFrame(animFrame);
-      updateVisualizer(Array(12).fill(0));
+      mediaRecorder.stop();
       
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-      }
+      recordBtn.classList.remove('recording');
+      recordBtn.textContent = '🎤';
+      hintEl.textContent = 'Houd ingedrukt om op te nemen';
+      hintEl.classList.remove('recording');
+      timerEl.classList.remove('visible');
+      timerEl.textContent = '0:00';
+      
+      clearInterval(timerInterval);
+      
+      // Reset visualizer
+      bars.forEach(bar => bar.style.height = '10px');
     }
     
-    // Event listeners - support both mouse and touch
-    recordBtn.addEventListener('mousedown', (e) => {
+    // Update visualizer
+    function updateVisualizer() {
+      if (!isRecording || !analyser) return;
+      
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(dataArray);
+      
+      bars.forEach((bar, i) => {
+        const value = dataArray[i * 4] || 0;
+        const height = Math.max(8, (value / 255) * 40);
+        bar.style.height = height + 'px';
+      });
+      
+      requestAnimationFrame(updateVisualizer);
+    }
+    
+    // Speed button handler
+    speedBtns.forEach(btn => {
+      btn.onclick = () => {
+        speedBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        playbackSpeed = parseFloat(btn.dataset.speed);
+        audioPlayer.playbackRate = playbackSpeed;
+      };
+    });
+    
+    // Record button events (mouse)
+    recordBtn.onmousedown = (e) => {
       e.preventDefault();
       startRecording();
-    });
+    };
     
-    recordBtn.addEventListener('mouseup', (e) => {
-      e.preventDefault();
-      stopRecording();
-    });
-    
-    recordBtn.addEventListener('mouseleave', (e) => {
+    recordBtn.onmouseup = () => stopRecording();
+    recordBtn.onmouseleave = () => {
       if (isRecording) stopRecording();
-    });
+    };
     
-    recordBtn.addEventListener('touchstart', (e) => {
+    // Record button events (touch)
+    recordBtn.ontouchstart = (e) => {
       e.preventDefault();
       startRecording();
-    });
+    };
     
-    recordBtn.addEventListener('touchend', (e) => {
+    recordBtn.ontouchend = (e) => {
       e.preventDefault();
       stopRecording();
-    });
+    };
     
-    recordBtn.addEventListener('touchcancel', (e) => {
-      if (isRecording) stopRecording();
-    });
+    recordBtn.ontouchcancel = () => stopRecording();
     
     // Prevent context menu on long press
-    recordBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+    recordBtn.oncontextmenu = (e) => e.preventDefault();
     
-    // Initialize
-    async function init() {
-      const micOk = await initMic();
-      if (micOk) {
-        await connectWS();
-        setStatus('Klaar');
-      }
-    }
+    // Connect on load
+    connect();
     
-    init();
+    // Scroll to bottom
+    messagesEl.scrollTop = messagesEl.scrollHeight;
   </script>
 </body>
 </html>

@@ -91,6 +91,38 @@ async function getOpenClawResponse(messages, isFirstMessage = false) {
   return result.choices[0].message.content;
 }
 
+// Sanitize text for TTS - remove symbols, emojis, make it speakable
+function sanitizeForTTS(text) {
+  let result = text;
+  
+  // Remove all emojis (covers most emoji ranges)
+  result = result.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]/gu, '');
+  
+  // Handle currency before numbers: $74.138 -> 74.138 dollar
+  result = result.replace(/\$\s*([\d.,]+)/g, '$1 dollar');
+  result = result.replace(/€\s*([\d.,]+)/g, '$1 euro');
+  
+  // Handle percentages: -8.77% -> min 8.77 procent, 5% -> 5 procent
+  result = result.replace(/([+-]?)\s*([\d.,]+)\s*%/g, (match, sign, num) => {
+    const prefix = sign === '-' ? 'min ' : sign === '+' ? 'plus ' : '';
+    return `${prefix}${num} procent`;
+  });
+  
+  // Remove parentheses but keep content
+  result = result.replace(/\(([^)]+)\)/g, ', $1,');
+  
+  // Clean up arrows and special chars
+  result = result.replace(/[→←↑↓➜►▶]/g, '');
+  result = result.replace(/[📈📉💰🔥⚡️✅❌⬆️⬇️]/g, '');
+  
+  // Clean up multiple spaces and punctuation
+  result = result.replace(/\s+/g, ' ');
+  result = result.replace(/,\s*,/g, ',');
+  result = result.replace(/\s+([.,!?])/g, '$1');
+  
+  return result.trim();
+}
+
 // Text-to-Speech using ElevenLabs
 async function textToSpeech(text) {
   const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
@@ -174,9 +206,11 @@ wss.on('connection', (ws) => {
       
       ws.send(JSON.stringify({ type: 'response', text: response }));
 
-      // 3. Text to Speech
+      // 3. Sanitize and Text to Speech
       ws.send(JSON.stringify({ type: 'status', message: 'Generating voice...' }));
-      const audioBuffer = await textToSpeech(response);
+      const spokenText = sanitizeForTTS(response);
+      console.log('TTS text:', spokenText);
+      const audioBuffer = await textToSpeech(spokenText);
       
       // Send audio as binary
       ws.send(audioBuffer);

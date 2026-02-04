@@ -114,13 +114,13 @@
       font-size: 0.95rem;
     }
     
-    /* Visualizer */
+    /* Visualizer - more compact */
     .visualizer-container {
-      height: 80px;
+      height: 50px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 24px 0;
+      margin: 12px 0;
     }
     
     .visualizer {
@@ -145,20 +145,25 @@
       opacity: 1;
     }
     
-    /* Transcript */
-    /* Speed slider */
+    /* Transcript - hidden when empty */
+    .transcript-container:empty {
+      display: none;
+    }
+    
+    /* Speed slider - compact */
     .speed-control {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
-      margin: 16px 0;
-      padding: 12px 20px;
+      gap: 10px;
+      margin: 12px 0;
+      padding: 10px 16px;
       background: var(--glass-bg);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border: 1px solid var(--glass-border);
-      border-radius: 16px;
+      border-radius: 14px;
+      font-size: 0.85rem;
     }
     
     .speed-label {
@@ -254,13 +259,13 @@
       font-weight: 500;
     }
     
-    /* Call buttons */
+    /* Call buttons - Now positioned higher */
     .call-actions {
       display: flex;
       justify-content: center;
       gap: 24px;
-      margin-top: 32px;
-      padding-bottom: 20px;
+      margin-top: 24px;
+      margin-bottom: 16px;
     }
     
     .call-btn {
@@ -441,18 +446,7 @@
         </div>
       </div>
       
-      <!-- Speed slider -->
-      <div class="speed-control">
-        <span class="speed-label">Snelheid</span>
-        <input type="range" class="speed-slider" id="speedSlider" 
-               min="0.5" max="2" step="0.05" value="1.25">
-        <span class="speed-value" id="speedValue">1.25x</span>
-      </div>
-      
-      <!-- Transcript -->
-      <div class="transcript-container" id="transcript"></div>
-      
-      <!-- Call buttons - Start -->
+      <!-- Call buttons - Start (moved up for visibility) -->
       <div class="call-actions" id="callActions">
         <button class="call-btn btn-answer" id="btnCall" title="Bel">📞</button>
       </div>
@@ -461,6 +455,17 @@
       <div class="call-actions hidden" id="inCallActions">
         <button class="call-btn btn-mute" id="btnMute" title="Mute">🎤</button>
         <button class="call-btn btn-hangup" id="btnHangup" title="Ophangen">📵</button>
+      </div>
+      
+      <!-- Transcript (shown during call) -->
+      <div class="transcript-container" id="transcript"></div>
+      
+      <!-- Speed slider (at bottom) -->
+      <div class="speed-control">
+        <span class="speed-label">Snelheid</span>
+        <input type="range" class="speed-slider" id="speedSlider" 
+               min="0.5" max="2" step="0.05" value="1.25">
+        <span class="speed-value" id="speedValue">1.25x</span>
       </div>
     </div>
   </main>

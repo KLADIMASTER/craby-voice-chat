@@ -380,6 +380,7 @@
   
   <!-- Audio elements -->
   <audio id="audioPlayer"></audio>
+  <audio id="holdMusic" loop></audio>
   <audio id="ringTone" loop>
     <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2JkZiZlI2Df3d0eYKOm6SqsK+pnpCCdGtncHyKmqexu7+6saSXiXpva2x0gI6frLe/wLmvpJiLfXFrbHF7iJimsLu+ubCkl4p8cGtsdH+Ll6OvuLy3rqOWiXxyb3J5goqTnaasrauon5aOhoB8enl6fICFiouLiYaCfnt5eXp7fH5/f39+fXx7enp5eXl5eXl5eXl5eXl5eXl5eXl5eXl5" type="audio/wav">
   </audio>
@@ -399,6 +400,7 @@
     const bars = visualizer.querySelectorAll('.bar');
     const transcript = document.getElementById('transcript');
     const audioPlayer = document.getElementById('audioPlayer');
+    const holdMusic = document.getElementById('holdMusic');
     const ringTone = document.getElementById('ringTone');
     const loadingOverlay = document.getElementById('loadingOverlay');
     const errorBanner = document.getElementById('errorBanner');
@@ -420,6 +422,9 @@
     let timerInterval = null;
     let audioContext = null;
     let analyser = null;
+    let audioQueue = [];
+    let isPlayingQueue = false;
+    let isHoldMusicPlaying = false;
     
     // Show error
     function showError(msg) {
@@ -488,41 +493,50 @@
         
         ws.onmessage = async (event) => {
           if (event.data instanceof Blob) {
-            // Audio response from Craby
-            isCrabySpeaking = true;
-            isProcessing = false;
-            avatar.className = 'avatar speaking';
-            setStatus('Craby spreekt...', 'speaking');
-            
-            // Pause VAD while playing audio
-            if (vad) vad.pause();
-            
+            // Audio response - queue it for playback
             const audioUrl = URL.createObjectURL(event.data);
-            audioPlayer.src = audioUrl;
-            await audioPlayer.play();
+            audioQueue.push(audioUrl);
+            
+            // Start playing if not already
+            if (!isPlayingQueue) {
+              playNextInQueue();
+            }
           } else {
             const msg = JSON.parse(event.data);
             console.log('Message:', msg);
             
             if (msg.type === 'transcript') {
               addMessage('user', msg.text);
+            } else if (msg.type === 'acknowledgment') {
+              // Quick acknowledgment - show it
+              addMessage('assistant', msg.text);
             } else if (msg.type === 'response') {
               addMessage('assistant', msg.text);
+            } else if (msg.type === 'hold_music') {
+              // Handle hold music
+              if (msg.action === 'start' && msg.url) {
+                startHoldMusic(msg.url);
+              } else if (msg.action === 'stop') {
+                stopHoldMusic();
+              }
             } else if (msg.type === 'status') {
               if (msg.message === 'Transcribing...') {
                 setStatus('Verwerken...', 'processing');
                 isProcessing = true;
-              } else if (msg.message === 'Thinking...') {
+              } else if (msg.message === 'Craby is thinking...') {
                 setStatus('Craby denkt na...', 'processing');
-              } else if (msg.message === 'Generating voice...') {
+              } else if (msg.message === 'Generating voice...' || msg.message === 'Formatting for voice...') {
                 setStatus('Stem genereren...', 'processing');
               } else if (msg.message === 'No speech detected') {
                 isProcessing = false;
                 setStatus('Luisteren...', 'listening');
+              } else if (msg.message === 'Ready') {
+                isProcessing = false;
               }
             } else if (msg.type === 'error') {
               showError(msg.message);
               isProcessing = false;
+              stopHoldMusic();
               setStatus('Luisteren...', 'listening');
             }
           }
@@ -530,16 +544,60 @@
       });
     }
     
-    // Audio finished playing
-    audioPlayer.onended = () => {
-      isCrabySpeaking = false;
-      avatar.className = 'avatar connected';
-      setStatus('Luisteren...', 'listening');
-      
-      // Resume VAD
-      if (vad && isInCall && !isMuted) {
-        vad.start();
+    // Audio queue playback
+    async function playNextInQueue() {
+      if (audioQueue.length === 0) {
+        isPlayingQueue = false;
+        isCrabySpeaking = false;
+        avatar.className = 'avatar connected';
+        
+        // Resume listening after all audio done
+        if (isInCall && !isMuted) {
+          setStatus('Luisteren...', 'listening');
+          if (vad) vad.start();
+        }
+        return;
       }
+      
+      isPlayingQueue = true;
+      isCrabySpeaking = true;
+      
+      // Stop hold music when main audio starts
+      stopHoldMusic();
+      
+      // Pause VAD while playing
+      if (vad) vad.pause();
+      
+      avatar.className = 'avatar speaking';
+      setStatus('Craby spreekt...', 'speaking');
+      
+      const audioUrl = audioQueue.shift();
+      audioPlayer.src = audioUrl;
+      await audioPlayer.play();
+    }
+    
+    // Hold music functions
+    function startHoldMusic(url) {
+      if (isHoldMusicPlaying) return;
+      console.log('Starting hold music:', url);
+      holdMusic.src = url;
+      holdMusic.volume = 0.15; // Low volume background
+      holdMusic.play().catch(e => console.log('Hold music blocked:', e));
+      isHoldMusicPlaying = true;
+      setStatus('Even geduld...', 'processing');
+    }
+    
+    function stopHoldMusic() {
+      if (!isHoldMusicPlaying) return;
+      console.log('Stopping hold music');
+      holdMusic.pause();
+      holdMusic.currentTime = 0;
+      isHoldMusicPlaying = false;
+    }
+    
+    // Audio finished playing - play next in queue
+    audioPlayer.onended = () => {
+      playNextInQueue();
     };
     
     // Initialize VAD
@@ -763,6 +821,13 @@
       isInCall = false;
       isCrabySpeaking = false;
       isProcessing = false;
+      isPlayingQueue = false;
+      
+      // Clear audio queue
+      audioQueue = [];
+      
+      // Stop hold music
+      stopHoldMusic();
       
       // Stop timer
       clearInterval(timerInterval);

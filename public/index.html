@@ -3,13 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Craby Voice Chat 🦀</title>
+  <title>Craby Voice Call 🦀</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -24,360 +20,335 @@
     }
     
     .container {
-      max-width: 500px;
+      max-width: 400px;
       width: 100%;
       text-align: center;
     }
     
-    h1 {
-      font-size: 2.5rem;
-      margin-bottom: 10px;
+    h1 { font-size: 2.5rem; margin-bottom: 10px; }
+    .subtitle { color: #8892b0; margin-bottom: 30px; }
+    
+    .call-status {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+      min-height: 30px;
     }
     
-    .subtitle {
-      color: #8892b0;
-      margin-bottom: 30px;
-    }
+    .call-status.listening { color: #64ffda; }
+    .call-status.speaking { color: #ffd93d; }
+    .call-status.processing { color: #ff6b6b; }
+    .call-status.playing { color: #a855f7; }
     
-    .status {
-      background: rgba(255,255,255,0.1);
-      padding: 10px 20px;
-      border-radius: 20px;
-      margin-bottom: 30px;
-      font-size: 0.9rem;
-    }
-    
-    .status.connected { color: #64ffda; }
-    .status.disconnected { color: #ff6b6b; }
-    .status.processing { color: #ffd93d; }
-    
-    .talk-button {
-      width: 150px;
-      height: 150px;
+    .call-button {
+      width: 120px;
+      height: 120px;
       border-radius: 50%;
       border: none;
-      background: linear-gradient(145deg, #e74c3c, #c0392b);
-      color: white;
-      font-size: 1.2rem;
-      font-weight: bold;
+      font-size: 2.5rem;
       cursor: pointer;
       transition: all 0.3s ease;
-      box-shadow: 0 10px 30px rgba(231, 76, 60, 0.4);
+      margin: 20px auto;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 30px;
     }
     
-    .talk-button:hover {
-      transform: scale(1.05);
-      box-shadow: 0 15px 40px rgba(231, 76, 60, 0.5);
-    }
-    
-    .talk-button:active,
-    .talk-button.recording {
-      transform: scale(0.95);
+    .call-button.inactive {
       background: linear-gradient(145deg, #27ae60, #2ecc71);
-      box-shadow: 0 5px 20px rgba(46, 204, 113, 0.5);
+      box-shadow: 0 10px 30px rgba(46, 204, 113, 0.4);
     }
     
-    .talk-button:disabled {
-      background: #555;
-      cursor: not-allowed;
-      box-shadow: none;
+    .call-button.active {
+      background: linear-gradient(145deg, #e74c3c, #c0392b);
+      box-shadow: 0 10px 30px rgba(231, 76, 60, 0.4);
+      animation: pulse 2s infinite;
     }
     
-    .transcript-box {
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    .visualizer {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      height: 60px;
+      gap: 4px;
+      margin: 20px 0;
+    }
+    
+    .bar {
+      width: 8px;
+      background: #64ffda;
+      border-radius: 4px;
+      transition: height 0.1s ease;
+    }
+    
+    .transcript {
       background: rgba(255,255,255,0.05);
       border-radius: 15px;
-      padding: 20px;
-      margin-bottom: 20px;
-      text-align: left;
-      max-height: 300px;
+      padding: 15px;
+      margin-top: 20px;
+      max-height: 200px;
       overflow-y: auto;
+      text-align: left;
+      font-size: 0.9rem;
     }
     
-    .message {
-      margin-bottom: 15px;
-      padding: 10px 15px;
-      border-radius: 10px;
+    .transcript p {
+      margin: 8px 0;
+      padding: 8px 12px;
+      border-radius: 8px;
     }
     
-    .message.user {
-      background: rgba(100, 255, 218, 0.1);
-      border-left: 3px solid #64ffda;
-    }
-    
-    .message.assistant {
-      background: rgba(255, 107, 107, 0.1);
-      border-left: 3px solid #ff6b6b;
-    }
-    
-    .message.assistant.ack {
-      background: rgba(255, 217, 61, 0.1);
-      border-left: 3px solid #ffd93d;
-      font-style: italic;
-    }
-    
-    .message-label {
-      font-size: 0.75rem;
-      color: #8892b0;
-      margin-bottom: 5px;
-    }
+    .transcript .you { background: rgba(100, 255, 218, 0.1); }
+    .transcript .craby { background: rgba(168, 85, 247, 0.1); }
     
     .hint {
       color: #8892b0;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+      margin-top: 15px;
     }
     
-    audio {
-      display: none;
-    }
-    
-    .speed-controls {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    
-    .speed-btn {
-      padding: 8px 16px;
-      border: 2px solid rgba(255,255,255,0.2);
-      border-radius: 20px;
-      background: transparent;
-      color: #8892b0;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    
-    .speed-btn:hover {
-      border-color: rgba(255,255,255,0.4);
-      color: #fff;
-    }
-    
-    .speed-btn.active {
-      border-color: #64ffda;
-      color: #64ffda;
-      background: rgba(100, 255, 218, 0.1);
-    }
-    
-    .speed-label {
-      color: #8892b0;
-      font-size: 0.75rem;
-      margin-bottom: 8px;
-    }
+    audio { display: none; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>🦀 Craby</h1>
-    <p class="subtitle">Voice Chat</p>
+    <p class="subtitle">Voice Call</p>
     
-    <div class="status disconnected" id="status">Connecting...</div>
+    <div class="call-status" id="status">Tap to start call</div>
     
-    <button class="talk-button" id="talkBtn" disabled>
-      Hold to Talk
-    </button>
+    <button class="call-button inactive" id="callBtn">📞</button>
     
-    <div class="speed-label">Playback Speed</div>
-    <div class="speed-controls">
-      <button class="speed-btn active" data-speed="1">1.0x</button>
-      <button class="speed-btn" data-speed="1.25">1.25x</button>
-      <button class="speed-btn" data-speed="1.5">1.5x</button>
+    <div class="visualizer" id="visualizer">
+      <div class="bar" style="height: 10px;"></div>
+      <div class="bar" style="height: 10px;"></div>
+      <div class="bar" style="height: 10px;"></div>
+      <div class="bar" style="height: 10px;"></div>
+      <div class="bar" style="height: 10px;"></div>
+      <div class="bar" style="height: 10px;"></div>
+      <div class="bar" style="height: 10px;"></div>
+      <div class="bar" style="height: 10px;"></div>
     </div>
     
-    <div class="transcript-box" id="transcript"></div>
+    <div class="transcript" id="transcript"></div>
     
-    <p class="hint">Hold the button and speak. Release to send.</p>
+    <p class="hint">Just talk naturally. Craby will respond when you pause.</p>
   </div>
   
   <audio id="audioPlayer"></audio>
-  <audio id="holdMusic" loop></audio>
   
   <script>
-    const talkBtn = document.getElementById('talkBtn');
+    const callBtn = document.getElementById('callBtn');
     const statusEl = document.getElementById('status');
     const transcriptEl = document.getElementById('transcript');
     const audioPlayer = document.getElementById('audioPlayer');
-    const holdMusic = document.getElementById('holdMusic');
+    const visualizer = document.getElementById('visualizer');
+    const bars = visualizer.querySelectorAll('.bar');
     
     let ws;
+    let isInCall = false;
     let mediaRecorder;
-    let audioChunks = [];
+    let audioContext;
+    let analyser;
+    let stream;
+    let silenceTimer;
     let isRecording = false;
-    let audioQueue = [];
-    let isPlayingAudio = false;
-    let playbackSpeed = 1.0;
+    let audioChunks = [];
+    let isPlaying = false;
     
-    // Speed button handlers
-    document.querySelectorAll('.speed-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        playbackSpeed = parseFloat(btn.dataset.speed);
-        // Apply to currently playing audio if any
-        audioPlayer.playbackRate = playbackSpeed;
+    // Voice Activity Detection settings
+    const SILENCE_THRESHOLD = 15; // Volume level considered silence
+    const SILENCE_DURATION = 1500; // ms of silence before sending
+    const MIN_RECORDING_TIME = 500; // Minimum recording time in ms
+    
+    function setStatus(text, className) {
+      statusEl.textContent = text;
+      statusEl.className = 'call-status ' + (className || '');
+    }
+    
+    function addTranscript(who, text) {
+      const p = document.createElement('p');
+      p.className = who.toLowerCase();
+      p.textContent = `${who}: ${text}`;
+      transcriptEl.appendChild(p);
+      transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    }
+    
+    function updateVisualizer(volume) {
+      bars.forEach((bar, i) => {
+        const height = Math.max(10, Math.min(50, volume * (0.5 + Math.random() * 0.5)));
+        bar.style.height = height + 'px';
+        bar.style.background = isRecording ? '#64ffda' : (isPlaying ? '#a855f7' : '#4a5568');
       });
-    });
+    }
     
-    // Connect to WebSocket
+    // Connect WebSocket
     function connect() {
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
       ws = new WebSocket(`${protocol}//${location.host}`);
       
-      ws.onopen = () => {
-        setStatus('Ready', 'connected');
-        talkBtn.disabled = false;
-      };
+      ws.onopen = () => console.log('Connected');
       
       ws.onclose = () => {
-        setStatus('Disconnected - Reconnecting...', 'disconnected');
-        talkBtn.disabled = true;
-        setTimeout(connect, 2000);
-      };
-      
-      ws.onerror = (err) => {
-        console.error('WebSocket error:', err);
+        console.log('Disconnected');
+        if (isInCall) setTimeout(connect, 2000);
       };
       
       ws.onmessage = async (event) => {
         if (event.data instanceof Blob) {
-          // Audio response - queue it
+          // Audio response - play it
+          isPlaying = true;
+          setStatus('Craby speaking...', 'playing');
           const audioUrl = URL.createObjectURL(event.data);
-          audioQueue.push(audioUrl);
-          playNextAudio();
+          audioPlayer.src = audioUrl;
+          audioPlayer.play();
         } else {
-          // JSON message
           const msg = JSON.parse(event.data);
-          
-          if (msg.type === 'status') {
-            setStatus(msg.message, 'processing');
-          } else if (msg.type === 'transcript') {
-            addMessage('You', msg.text, 'user');
-          } else if (msg.type === 'acknowledgment') {
-            // Quick acknowledgment before main response
-            addMessage('Craby', msg.text, 'assistant ack');
+          if (msg.type === 'transcript') {
+            addTranscript('You', msg.text);
           } else if (msg.type === 'response') {
-            addMessage('Craby', msg.text, 'assistant');
-          } else if (msg.type === 'hold_music') {
-            if (msg.action === 'start') {
-              holdMusic.src = msg.url;
-              holdMusic.volume = 0.3; // Soft background volume
-              // Wait for acknowledgment audio to finish, then start music
-              setTimeout(() => {
-                if (holdMusic.paused && holdMusic.src) {
-                  holdMusic.play().catch(() => {});
-                  setStatus('🎵 Hold music...', 'processing');
-                }
-              }, 2500); // Give time for ack TTS to play
-            } else if (msg.action === 'stop') {
-              // Fade out smoothly
-              const fadeOut = setInterval(() => {
-                if (holdMusic.volume > 0.05) {
-                  holdMusic.volume -= 0.05;
-                } else {
-                  clearInterval(fadeOut);
-                  holdMusic.pause();
-                  holdMusic.currentTime = 0;
-                  holdMusic.volume = 0.3; // Reset for next time
-                }
-              }, 50);
-            }
-          } else if (msg.type === 'error') {
-            setStatus('Error: ' + msg.message, 'disconnected');
-            holdMusic.pause();
+            addTranscript('Craby', msg.text);
+          } else if (msg.type === 'status') {
+            setStatus(msg.message, 'processing');
           }
         }
       };
     }
     
-    // Play queued audio sequentially
-    function playNextAudio() {
-      if (isPlayingAudio || audioQueue.length === 0) return;
-      
-      isPlayingAudio = true;
-      const audioUrl = audioQueue.shift();
-      
-      audioPlayer.src = audioUrl;
-      audioPlayer.playbackRate = playbackSpeed;
-      audioPlayer.play();
-      
-      audioPlayer.onended = () => {
-        isPlayingAudio = false;
-        if (audioQueue.length === 0) {
-          setStatus('Ready', 'connected');
-        }
-        playNextAudio();
-      };
-    }
+    // Audio finished playing - start listening again
+    audioPlayer.onended = () => {
+      isPlaying = false;
+      if (isInCall) {
+        startListening();
+      }
+    };
     
-    function setStatus(text, className) {
-      statusEl.textContent = text;
-      statusEl.className = 'status ' + className;
-    }
-    
-    function addMessage(sender, text, type) {
-      const div = document.createElement('div');
-      div.className = 'message ' + type;
-      div.innerHTML = `<div class="message-label">${sender}</div>${text}`;
-      transcriptEl.appendChild(div);
-      transcriptEl.scrollTop = transcriptEl.scrollHeight;
-    }
-    
-    // Recording functions
-    async function startRecording() {
+    // Start the call
+    async function startCall() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Setup audio analysis for VAD
+        audioContext = new AudioContext();
+        analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 256;
+        
+        // Setup media recorder
         mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-        audioChunks = [];
         
         mediaRecorder.ondataavailable = (e) => {
-          audioChunks.push(e.data);
+          if (e.data.size > 0) audioChunks.push(e.data);
         };
         
         mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-          ws.send(audioBlob);
-          stream.getTracks().forEach(track => track.stop());
+          if (audioChunks.length > 0 && isInCall) {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            ws.send(audioBlob);
+            setStatus('Processing...', 'processing');
+          }
+          audioChunks = [];
         };
         
-        mediaRecorder.start();
-        isRecording = true;
-        talkBtn.classList.add('recording');
-        talkBtn.textContent = '🎤 Recording...';
-        setStatus('Listening...', 'processing');
+        isInCall = true;
+        callBtn.className = 'call-button active';
+        callBtn.textContent = '📵';
+        connect();
+        
+        startListening();
+        
       } catch (err) {
-        console.error('Microphone error:', err);
-        setStatus('Microphone access denied', 'disconnected');
+        console.error('Mic error:', err);
+        setStatus('Microphone access denied', '');
       }
     }
     
-    function stopRecording() {
-      if (mediaRecorder && isRecording) {
+    // End the call
+    function endCall() {
+      isInCall = false;
+      isRecording = false;
+      
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
-        isRecording = false;
-        talkBtn.classList.remove('recording');
-        talkBtn.textContent = 'Hold to Talk';
+      }
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      if (audioContext) {
+        audioContext.close();
+      }
+      if (ws) {
+        ws.close();
+      }
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+      }
+      
+      callBtn.className = 'call-button inactive';
+      callBtn.textContent = '📞';
+      setStatus('Call ended', '');
+      updateVisualizer(0);
+    }
+    
+    // Start listening for voice
+    function startListening() {
+      if (!isInCall || isPlaying) return;
+      
+      setStatus('Listening...', 'listening');
+      isRecording = false;
+      audioChunks = [];
+      
+      detectVoice();
+    }
+    
+    // Voice Activity Detection loop
+    function detectVoice() {
+      if (!isInCall || isPlaying) return;
+      
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(dataArray);
+      
+      // Calculate average volume
+      const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+      updateVisualizer(average);
+      
+      if (average > SILENCE_THRESHOLD) {
+        // Voice detected
+        if (!isRecording) {
+          // Start recording
+          isRecording = true;
+          mediaRecorder.start();
+          setStatus('Speaking...', 'speaking');
+        }
+        // Reset silence timer
+        if (silenceTimer) clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          // Silence detected after speaking - send audio
+          if (isRecording && isInCall) {
+            isRecording = false;
+            mediaRecorder.stop();
+          }
+        }, SILENCE_DURATION);
+      }
+      
+      if (isInCall && !isPlaying) {
+        requestAnimationFrame(detectVoice);
       }
     }
     
-    // Event listeners
-    talkBtn.addEventListener('mousedown', startRecording);
-    talkBtn.addEventListener('mouseup', stopRecording);
-    talkBtn.addEventListener('mouseleave', stopRecording);
-    talkBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      startRecording();
-    });
-    talkBtn.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      stopRecording();
-    });
-    
-    // Start connection
-    connect();
+    // Toggle call on button click
+    callBtn.onclick = () => {
+      if (isInCall) {
+        endCall();
+      } else {
+        startCall();
+      }
+    };
   </script>
 </body>
 </html>

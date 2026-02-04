@@ -2,95 +2,72 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#f8f9fa">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>Bel met Craby 🦀</title>
+  <link rel="stylesheet" href="/styles.css">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      padding: 20px;
+    /* Call-specific overrides */
+    .call-page {
       overflow: hidden;
     }
     
     .phone-container {
       width: 100%;
-      max-width: 380px;
+      max-width: 400px;
       text-align: center;
-      position: relative;
+      padding: 0 20px;
     }
     
-    /* Avatar section */
-    .avatar-section {
-      margin-bottom: 20px;
+    /* Avatar states */
+    .call-avatar.ringing {
+      animation: ring-pulse 0.5s infinite;
     }
     
-    .avatar {
-      width: 140px;
-      height: 140px;
+    .call-avatar.connected {
+      border-color: var(--success-color);
+    }
+    
+    .call-avatar.connected::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
       border-radius: 50%;
-      background: linear-gradient(145deg, #ff6b35, #ff8c42);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 70px;
-      margin: 0 auto;
-      box-shadow: 0 10px 40px rgba(255, 107, 53, 0.3);
-      position: relative;
-      transition: all 0.3s ease;
-    }
-    
-    .avatar.ringing {
-      animation: ring-pulse 1s infinite;
-    }
-    
-    .avatar.connected {
-      box-shadow: 0 10px 50px rgba(46, 204, 113, 0.5);
-      background: linear-gradient(145deg, #27ae60, #2ecc71);
-    }
-    
-    .avatar.speaking {
-      box-shadow: 0 10px 60px rgba(168, 85, 247, 0.6);
-      background: linear-gradient(145deg, #9b59b6, #8e44ad);
-      animation: speak-pulse 0.5s infinite;
+      border: 2px solid var(--success-color);
+      opacity: 0.5;
     }
     
     @keyframes ring-pulse {
       0%, 100% { transform: scale(1) rotate(0deg); }
-      25% { transform: scale(1.05) rotate(-3deg); }
-      75% { transform: scale(1.05) rotate(3deg); }
+      25% { transform: scale(1.03) rotate(-2deg); }
+      75% { transform: scale(1.03) rotate(2deg); }
     }
     
-    @keyframes speak-pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.03); }
+    /* Call info */
+    .call-info {
+      margin-top: 24px;
     }
     
-    .caller-name {
+    .call-info .name {
       font-size: 2rem;
-      font-weight: 600;
-      margin-top: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
     }
     
-    .call-type {
-      color: #8892b0;
-      font-size: 0.95rem;
-      margin-top: 5px;
+    .call-info .type {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      margin-top: 4px;
     }
     
-    /* Call timer */
+    /* Timer */
     .call-timer {
-      font-size: 1.5rem;
+      font-size: 1.6rem;
       font-weight: 300;
-      color: #64ffda;
-      margin: 15px 0;
+      color: var(--success-color);
+      margin: 20px 0;
       font-variant-numeric: tabular-nums;
       opacity: 0;
       transition: opacity 0.3s;
@@ -100,27 +77,27 @@
       opacity: 1;
     }
     
-    /* Status indicator */
+    /* Status */
     .status-indicator {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
       margin: 20px 0;
-      min-height: 30px;
+      min-height: 32px;
     }
     
     .status-dot {
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: #64ffda;
+      background: var(--success-color);
       animation: blink 1.5s infinite;
     }
     
-    .status-dot.listening { background: #64ffda; }
-    .status-dot.processing { background: #ffd93d; animation: pulse-fast 0.5s infinite; }
-    .status-dot.speaking { background: #a855f7; }
+    .status-dot.listening { background: var(--success-color); }
+    .status-dot.processing { background: var(--accent); animation: pulse-fast 0.5s infinite; }
+    .status-dot.speaking { background: var(--accent); }
     
     @keyframes blink {
       0%, 100% { opacity: 1; }
@@ -129,21 +106,21 @@
     
     @keyframes pulse-fast {
       0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.3); opacity: 0.7; }
+      50% { transform: scale(1.4); opacity: 0.6; }
     }
     
     .status-text {
-      color: #ccd6f6;
+      color: var(--text-secondary);
       font-size: 0.95rem;
     }
     
-    /* Audio visualizer */
+    /* Visualizer */
     .visualizer-container {
       height: 80px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 25px 0;
+      margin: 24px 0;
     }
     
     .visualizer {
@@ -154,73 +131,94 @@
       height: 60px;
     }
     
-    .bar {
-      width: 6px;
-      background: linear-gradient(to top, #64ffda, #4ade80);
+    .visualizer .bar {
+      width: 5px;
+      background: var(--accent);
       border-radius: 3px;
       transition: height 0.05s ease;
       min-height: 4px;
+      opacity: 0.6;
     }
     
-    .bar.speaking-bar {
-      background: linear-gradient(to top, #a855f7, #c084fc);
+    .visualizer .bar.speaking-bar {
+      background: var(--accent);
+      opacity: 1;
     }
     
     /* Transcript */
     .transcript-container {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.1);
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
       border-radius: 20px;
-      padding: 15px;
-      margin: 20px 0;
-      max-height: 150px;
+      padding: 16px;
+      margin: 24px 0;
+      max-height: 160px;
       overflow-y: auto;
       text-align: left;
     }
     
     .transcript-message {
       margin: 10px 0;
-      padding: 10px 14px;
-      border-radius: 12px;
+      padding: 12px 16px;
+      border-radius: 14px;
       font-size: 0.9rem;
-      line-height: 1.4;
+      line-height: 1.5;
+      animation: message-in 0.3s ease;
     }
     
     .transcript-message.user {
-      background: rgba(100, 255, 218, 0.1);
-      border-left: 3px solid #64ffda;
+      background: var(--message-user-bg);
+      color: var(--message-user-text);
+      margin-left: 15%;
+      border-bottom-right-radius: 4px;
     }
     
     .transcript-message.assistant {
-      background: rgba(168, 85, 247, 0.1);
-      border-left: 3px solid #a855f7;
+      background: var(--message-bot-bg);
+      color: var(--message-bot-text);
+      border: 1px solid var(--glass-border);
+      margin-right: 15%;
+      border-bottom-left-radius: 4px;
     }
     
     .transcript-message .label {
       font-size: 0.75rem;
-      color: #8892b0;
+      color: var(--text-muted);
       margin-bottom: 4px;
+      font-weight: 500;
     }
     
     /* Call buttons */
     .call-actions {
       display: flex;
       justify-content: center;
-      gap: 30px;
-      margin-top: 30px;
+      gap: 24px;
+      margin-top: 32px;
+      padding-bottom: 20px;
     }
     
     .call-btn {
-      width: 70px;
-      height: 70px;
+      width: 64px;
+      height: 64px;
       border-radius: 50%;
       border: none;
-      font-size: 1.8rem;
+      font-size: 1.6rem;
       cursor: pointer;
       transition: all 0.2s ease;
       display: flex;
       align-items: center;
       justify-content: center;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+    }
+    
+    .call-btn:hover {
+      transform: scale(1.08);
     }
     
     .call-btn:active {
@@ -228,46 +226,35 @@
     }
     
     .btn-answer {
-      background: linear-gradient(145deg, #27ae60, #2ecc71);
-      box-shadow: 0 8px 25px rgba(46, 204, 113, 0.4);
+      background: var(--success-color);
+      border-color: var(--success-color);
+      box-shadow: 0 8px 24px rgba(56, 161, 105, 0.35);
     }
     
     .btn-answer:hover {
-      box-shadow: 0 12px 35px rgba(46, 204, 113, 0.6);
+      box-shadow: 0 12px 32px rgba(56, 161, 105, 0.5);
     }
     
     .btn-hangup {
-      background: linear-gradient(145deg, #e74c3c, #c0392b);
-      box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+      background: var(--recording-color);
+      border-color: var(--recording-color);
+      box-shadow: 0 8px 24px rgba(229, 62, 62, 0.35);
     }
     
     .btn-hangup:hover {
-      box-shadow: 0 12px 35px rgba(231, 76, 60, 0.6);
-    }
-    
-    .btn-mute {
-      background: rgba(255,255,255,0.1);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      box-shadow: 0 12px 32px rgba(229, 62, 62, 0.5);
     }
     
     .btn-mute.muted {
-      background: #e74c3c;
+      background: var(--recording-color);
+      border-color: var(--recording-color);
     }
-    
-    /* Hidden states */
-    .hidden { display: none !important; }
-    
-    /* Initial state - incoming call simulation */
-    .incoming-call .avatar { animation: ring-pulse 0.5s infinite; }
     
     /* Loading overlay */
     .loading-overlay {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(15, 15, 35, 0.95);
+      inset: 0;
+      background: var(--bg-primary);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -282,10 +269,10 @@
     }
     
     .loading-spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid rgba(100, 255, 218, 0.2);
-      border-top-color: #64ffda;
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--glass-border);
+      border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
@@ -296,30 +283,54 @@
     
     .loading-text {
       margin-top: 20px;
-      color: #8892b0;
+      color: var(--text-secondary);
     }
     
-    /* Error message */
-    .error-banner {
+    /* Back button */
+    .back-button {
       position: fixed;
       top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(231, 76, 60, 0.9);
-      padding: 12px 24px;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      z-index: 101;
-      opacity: 0;
-      transition: opacity 0.3s;
+      left: 20px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      transition: all 0.2s ease;
+      box-shadow: var(--glass-shadow);
+      z-index: 50;
     }
     
-    .error-banner.visible {
-      opacity: 1;
+    .back-button:hover {
+      transform: scale(1.1);
+    }
+    
+    /* Safe area for bottom controls */
+    @supports (padding-bottom: env(safe-area-inset-bottom)) {
+      .call-actions {
+        padding-bottom: calc(20px + env(safe-area-inset-bottom));
+      }
     }
   </style>
 </head>
-<body>
+<body class="call-page">
+  <!-- Theme Toggle -->
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+    <span class="icon-moon">🌙</span>
+    <span class="icon-sun">☀️</span>
+  </button>
+  
+  <!-- Back button -->
+  <button class="back-button" onclick="window.location='/'">←</button>
+  
   <!-- Loading overlay -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-spinner"></div>
@@ -327,56 +338,60 @@
   </div>
   
   <!-- Error banner -->
-  <div class="error-banner" id="errorBanner"></div>
+  <div class="error" id="errorBanner"></div>
   
-  <div class="phone-container">
-    <!-- Avatar -->
-    <div class="avatar-section">
-      <div class="avatar" id="avatar">🦀</div>
-      <h1 class="caller-name">Craby</h1>
-      <p class="call-type" id="callType">Tik om te bellen</p>
-    </div>
-    
-    <!-- Timer -->
-    <div class="call-timer" id="callTimer">00:00</div>
-    
-    <!-- Status -->
-    <div class="status-indicator" id="statusIndicator">
-      <div class="status-dot" id="statusDot"></div>
-      <span class="status-text" id="statusText">Klaar om te bellen</span>
-    </div>
-    
-    <!-- Visualizer -->
-    <div class="visualizer-container">
-      <div class="visualizer" id="visualizer">
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
+  <main class="call-page">
+    <div class="phone-container">
+      <!-- Avatar -->
+      <div class="call-avatar" id="avatar">🦀</div>
+      
+      <div class="call-info">
+        <h1 class="name">Craby</h1>
+        <p class="type" id="callType">Tik om te bellen</p>
+      </div>
+      
+      <!-- Timer -->
+      <div class="call-timer" id="callTimer">00:00</div>
+      
+      <!-- Status -->
+      <div class="status-indicator" id="statusIndicator">
+        <div class="status-dot" id="statusDot"></div>
+        <span class="status-text" id="statusText">Klaar om te bellen</span>
+      </div>
+      
+      <!-- Visualizer -->
+      <div class="visualizer-container">
+        <div class="visualizer" id="visualizer">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+      </div>
+      
+      <!-- Transcript -->
+      <div class="transcript-container" id="transcript"></div>
+      
+      <!-- Call buttons - Start -->
+      <div class="call-actions" id="callActions">
+        <button class="call-btn btn-answer" id="btnCall" title="Bel">📞</button>
+      </div>
+      
+      <!-- Call buttons - In Call -->
+      <div class="call-actions hidden" id="inCallActions">
+        <button class="call-btn btn-mute" id="btnMute" title="Mute">🎤</button>
+        <button class="call-btn btn-hangup" id="btnHangup" title="Ophangen">📵</button>
       </div>
     </div>
-    
-    <!-- Transcript -->
-    <div class="transcript-container" id="transcript"></div>
-    
-    <!-- Call buttons -->
-    <div class="call-actions" id="callActions">
-      <button class="call-btn btn-answer" id="btnCall" title="Bel">📞</button>
-    </div>
-    
-    <div class="call-actions hidden" id="inCallActions">
-      <button class="call-btn btn-mute" id="btnMute" title="Mute">🎤</button>
-      <button class="call-btn btn-hangup" id="btnHangup" title="Ophangen">📵</button>
-    </div>
-  </div>
+  </main>
   
   <!-- Audio elements -->
   <audio id="audioPlayer"></audio>
@@ -390,6 +405,38 @@
   <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.7/dist/bundle.min.js"></script>
   
   <script>
+    // ==========================================
+    // Theme management
+    // ==========================================
+    const themeToggle = document.getElementById('themeToggle');
+    const html = document.documentElement;
+    
+    function getPreferredTheme() {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    
+    function setTheme(theme) {
+      html.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) {
+        metaTheme.content = theme === 'dark' ? '#0a0a0f' : '#f8f9fa';
+      }
+    }
+    
+    setTheme(getPreferredTheme());
+    
+    themeToggle.addEventListener('click', () => {
+      const current = html.getAttribute('data-theme');
+      setTheme(current === 'dark' ? 'light' : 'dark');
+    });
+    
+    // ==========================================
+    // Call Logic (unchanged)
+    // ==========================================
+    
     // Elements
     const avatar = document.getElementById('avatar');
     const callType = document.getElementById('callType');
@@ -413,7 +460,7 @@
     
     // State
     let ws = null;
-    let vad = null;
+    let vadInstance = null;
     let isInCall = false;
     let isMuted = false;
     let isProcessing = false;
@@ -549,12 +596,12 @@
       if (audioQueue.length === 0) {
         isPlayingQueue = false;
         isCrabySpeaking = false;
-        avatar.className = 'avatar connected';
+        avatar.className = 'call-avatar connected';
         
         // Resume listening after all audio done
         if (isInCall && !isMuted) {
           setStatus('Luisteren...', 'listening');
-          if (vad) vad.start();
+          if (vadInstance) vadInstance.start();
         }
         return;
       }
@@ -566,9 +613,9 @@
       stopHoldMusic();
       
       // Pause VAD while playing
-      if (vad) vad.pause();
+      if (vadInstance) vadInstance.pause();
       
-      avatar.className = 'avatar speaking';
+      avatar.className = 'call-avatar speaking';
       setStatus('Craby spreekt...', 'speaking');
       
       const audioUrl = audioQueue.shift();
@@ -606,11 +653,11 @@
         // Create audio context for visualizer
         audioContext = new AudioContext();
         
-        vad = await vad.MicVAD.new({
+        vadInstance = await vad.MicVAD.new({
           onSpeechStart: () => {
             if (!isInCall || isMuted || isProcessing || isCrabySpeaking) return;
             console.log('Speech started');
-            avatar.className = 'avatar connected';
+            avatar.className = 'call-avatar connected';
             setStatus('Je spreekt...', 'listening');
           },
           onSpeechEnd: async (audio) => {
@@ -719,7 +766,7 @@
         };
         
         // VAD mock object
-        vad = {
+        vadInstance = {
           start: () => {
             const check = () => {
               if (!isInCall || isMuted || isCrabySpeaking) {
@@ -780,11 +827,11 @@
         await connectWS();
         
         // Start VAD
-        if (vad) {
-          vad.start();
+        if (vadInstance) {
+          vadInstance.start();
         } else {
           await initFallbackVAD();
-          vad.start();
+          vadInstance.start();
         }
         
         isInCall = true;
@@ -792,7 +839,7 @@
         timerInterval = setInterval(updateTimer, 1000);
         
         // Update UI
-        avatar.className = 'avatar connected';
+        avatar.className = 'call-avatar connected';
         callType.textContent = 'Verbonden';
         callTimer.classList.add('visible');
         callActions.classList.add('hidden');
@@ -834,8 +881,8 @@
       callStartTime = null;
       
       // Stop VAD
-      if (vad) {
-        vad.pause();
+      if (vadInstance) {
+        vadInstance.pause();
       }
       
       // Close WebSocket
@@ -862,7 +909,7 @@
       osc.stop(ctx.currentTime + 0.3);
       
       // Update UI
-      avatar.className = 'avatar';
+      avatar.className = 'call-avatar';
       callType.textContent = 'Tik om te bellen';
       callTimer.classList.remove('visible');
       callTimer.textContent = '00:00';
@@ -884,10 +931,10 @@
       
       if (isMuted) {
         setStatus('Gedempt', 'processing');
-        if (vad) vad.pause();
+        if (vadInstance) vadInstance.pause();
       } else {
         setStatus('Luisteren...', 'listening');
-        if (vad && !isCrabySpeaking) vad.start();
+        if (vadInstance && !isCrabySpeaking) vadInstance.start();
       }
     }
     

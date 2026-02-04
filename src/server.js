@@ -31,9 +31,14 @@ const wss = new WebSocketServer({ server });
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Route for new call experience
+// Route for call experience (real-time conversation)
 app.get('/call', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/call.html'));
+});
+
+// Route for voice message experience (hold-to-record)
+app.get('/voice', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/voice.html'));
 });
 
 // Session tracking for conversation continuity

@@ -168,34 +168,7 @@ async function speechToText(audioBuffer) {
 }
 
 // Get response from OpenClaw (the REAL Craby!)
-// System prompt that tells Craby to respond in a voice-call-friendly way
-const VOICE_SYSTEM_PROMPT = `Je bent Craby en je praat via een TELEFOONGESPREK. De gebruiker hoort je antwoord als gesproken audio.
-
-KRITIEKE REGELS VOOR SPRAAK-OUTPUT:
-- Schrijf ALLEEN vloeiende, gesproken tekst — alsof je echt aan het bellen bent
-- GEEN markdown: geen ##, **, *, \`, ---, >, bullet points of nummering
-- GEEN emoji's
-- GEEN lijstjes of opsommingen — verwerk alles in lopende zinnen en alinea's
-- GEEN speciale tekens of formatting
-- Schrijf getallen uit waar logisch: "$74.000" → "vierenzeventig duizend dollar"
-- Percentages: "-5%" → "min vijf procent"
-- Houd het conversationeel en beknopt — max 3-4 alinea's
-- Je praat Nederlands tenzij de gebruiker Engels praat
-- Wees direct en informatief, geen onnodige intro's
-
-VOORBEELD VAN GOEDE OUTPUT:
-"Oké, de cryptomarkt zit behoorlijk in de min. Bitcoin staat rond de zesenzeventig duizend dollar, dat is flink gezakt van de all-time high van honderdacht duizend. De hoofdreden is de onzekerheid rond Trump's tarieven. Daar komt nog een grote commodity crash bij, goud en zilver zijn flink gedaald, en dat heeft een cascade van liquidaties veroorzaakt in crypto."
-
-VOORBEELD VAN SLECHTE OUTPUT (DIT MAG NIET):
-"## 🔥 Crypto Analyse\\n- BTC: $76K 📉\\n- SOL: -44%\\n---\\n### Oorzaken:"`;
-
 async function getOpenClawResponse(messages) {
-  // Prepend voice system prompt to messages
-  const voiceMessages = [
-    { role: 'system', content: VOICE_SYSTEM_PROMPT },
-    ...messages
-  ];
-
   const response = await fetch(`${OPENCLAW_API_URL}/v1/chat/completions`, {
     method: 'POST',
     headers: {
@@ -203,7 +176,7 @@ async function getOpenClawResponse(messages) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      messages: voiceMessages,
+      messages: messages,
       max_tokens: 800,
     }),
   });
@@ -218,65 +191,95 @@ async function getOpenClawResponse(messages) {
   return result.choices[0].message.content;
 }
 
-// Strip all markdown and formatting artifacts from text (used as pre-processing + fallback)
+// ============================================================
+// TTS CLEANUP PIPELINE
+// Flow: raw markdown → stripMarkdown() → GPT-4o-mini rewrite → textToSpeech()
+// ============================================================
+
+// Step 1: Hard regex strip of all markdown, emoji, and formatting artifacts
 function stripMarkdown(text) {
-  let result = text;
-  // Remove code blocks
-  result = result.replace(/```[\s\S]*?```/g, '');
-  // Remove headers (## Title)
-  result = result.replace(/^#{1,6}\s+/gm, '');
-  // Remove horizontal rules (---, ***, ___)
-  result = result.replace(/^[\-\*_]{3,}\s*$/gm, '');
-  // Remove blockquotes (> text)
-  result = result.replace(/^>\s*/gm, '');
-  // Remove bold **text** and __text__
-  result = result.replace(/\*\*([^*]+)\*\*/g, '$1');
-  result = result.replace(/__([^_]+)__/g, '$1');
-  // Remove italic *text* and _text_
-  result = result.replace(/\*([^*]+)\*/g, '$1');
-  result = result.replace(/_([^_]+)_/g, '$1');
-  // Remove inline code `text`
-  result = result.replace(/`([^`]+)`/g, '$1');
-  // Remove bullet points (- item, * item, numbered lists)
-  result = result.replace(/^\s*[\-\*•]\s+/gm, '');
-  result = result.replace(/^\s*\d+[\.\)]\s+/gm, '');
-  // Remove ALL emoji (comprehensive ranges)
-  result = result.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{FE00}-\u{FE0F}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA00}-\u{1FA6F}]|[\u{1FA70}-\u{1FAFF}]|[\u{200D}]|[\u{20E3}]|[\u{FE0F}]/gu, '');
-  // Remove leftover markdown artifacts
-  result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); // [links](url) → links
-  result = result.replace(/\|/g, ','); // table pipes
-  // Clean up whitespace
-  result = result.replace(/\n{3,}/g, '\n\n'); // max 2 newlines
-  result = result.replace(/^\s+$/gm, ''); // empty lines with spaces
-  result = result.replace(/\s+/g, ' ').trim(); // collapse to single spaces
-  return result;
+  let r = text;
+
+  // --- Block-level elements ---
+  r = r.replace(/```[\s\S]*?```/g, '');                    // code blocks
+  r = r.replace(/^#{1,6}\s+(.*)/gm, '$1.');                // ## Header → Header. (add period for pause)
+  r = r.replace(/^[\-\*_]{3,}\s*$/gm, '');                 // horizontal rules (---, ***, ___)
+  r = r.replace(/^>\s*/gm, '');                             // blockquotes
+
+  // --- Inline elements ---
+  r = r.replace(/\*\*([^*]+)\*\*/g, '$1');                  // **bold**
+  r = r.replace(/__([^_]+)__/g, '$1');                      // __bold__
+  r = r.replace(/\*([^*]+)\*/g, '$1');                      // *italic*
+  r = r.replace(/_([^_\s][^_]*)_/g, '$1');                  // _italic_ (but not snake_case)
+  r = r.replace(/`([^`]+)`/g, '$1');                        // `inline code`
+  r = r.replace(/~~([^~]+)~~/g, '$1');                      // ~~strikethrough~~
+
+  // --- Lists → sentences ---
+  r = r.replace(/^\s*[\-\*•]\s+/gm, '');                   // - bullet / * bullet / • bullet
+  r = r.replace(/^\s*\d+[\.\)]\s+/gm, '');                 // 1. numbered / 1) numbered
+
+  // --- Links and images ---
+  r = r.replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1');          // ![alt](url) → alt
+  r = r.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');           // [text](url) → text
+  r = r.replace(/https?:\/\/\S+/g, '');                    // bare URLs
+
+  // --- Tables ---
+  r = r.replace(/^\|.*\|$/gm, (line) => {                  // | col | col | → col, col
+    if (/^[\|\s\-:]+$/.test(line)) return '';               // skip separator rows
+    return line.replace(/\|/g, ',').replace(/^,|,$/g, '').trim();
+  });
+
+  // --- Emoji (comprehensive) ---
+  r = r.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{FE0F}\u{2194}-\u{21AA}\u{231A}-\u{23F3}\u{25AA}-\u{25FE}\u{2934}-\u{2935}\u{23CF}\u{23E9}-\u{23EA}\u{23ED}-\u{23EF}\u{23F0}\u{23F8}-\u{23FA}]/gu, '');
+
+  // --- Special characters that sound bad in TTS ---
+  r = r.replace(/←|→|↑|↓|↔|⇒|⇐/g, '');                   // arrows
+  r = r.replace(/\*+/g, '');                                // leftover asterisks
+  r = r.replace(/#{1,6}/g, '');                             // leftover hashes
+
+  // --- Whitespace cleanup ---
+  r = r.replace(/,\s*,/g, ',');                             // double commas
+  r = r.replace(/\.\s*\./g, '.');                           // double periods
+  r = r.replace(/\n{2,}/g, '\n');                           // collapse multiple newlines
+  r = r.replace(/^\s*\n/gm, '');                            // remove empty lines
+  r = r.replace(/[ \t]+/g, ' ');                            // collapse spaces
+  r = r.trim();
+
+  return r;
 }
 
-// Convert text to TTS-friendly format using GPT-4o-mini (safety net after system prompt)
+// Step 2: GPT-4o-mini rewrites the cleaned text into natural spoken Dutch/English
 async function makeTTSFriendly(text) {
-  // First do a hard strip of any remaining markdown/emoji
+  // Always run stripMarkdown first
   const preClean = stripMarkdown(text);
-  
-  // If text is already clean enough (no special chars remain), skip the API call
-  const hasMarkdownArtifacts = /[#*_`>|]|^\s*-\s/m.test(preClean);
-  const hasEmoji = /[\u{1F300}-\u{1FAFF}]/u.test(preClean);
-  
-  if (!hasMarkdownArtifacts && !hasEmoji) {
-    console.log('Text already clean, skipping GPT-4o formatting');
-    return preClean;
-  }
+  console.log('Pre-cleaned text length:', preClean.length);
+  console.log('Pre-cleaned preview:', preClean.substring(0, 200));
 
-  const systemPrompt = `Je bent een tekst-formatter voor text-to-speech. Je ENIGE taak is de input herschrijven zodat het natuurlijk klinkt als gesproken tekst.
+  const systemPrompt = `Je bent een specialist in het omzetten van tekst naar natuurlijk gesproken taal voor text-to-speech.
 
-REGELS:
-- Verwijder ALLE emoji
-- Verwijder ALLE markdown (headers, bold, italic, code, lijstjes, horizontal rules)
-- Maak er vloeiende, gesproken zinnen van — geen opsommingen
-- Schrijf prijzen uit: "$74.000" → "vierenzeventig duizend dollar"
-- Percentages: "-5%" → "min vijf procent"
-- Houd dezelfde taal als de input (Nederlands/Engels)
-- Houd dezelfde betekenis en persoonlijkheid
-- Output ALLEEN de geconverteerde tekst, niets anders`;
+JE TAAK: Herschrijf de input als vloeiende, gesproken tekst. Alsof iemand het aan de telefoon vertelt.
+
+KRITIEKE REGELS:
+1. ALLEEN lopende zinnen en alinea's. Geen lijstjes, geen opsommingen, geen nummering.
+2. Verwerk ALLE informatie in een samenhangend verhaal met goede overgangen.
+3. Gebruik verbindingswoorden: "Daarnaast", "Verder", "Wat ook meespeelt", "Een andere factor", "Tot slot".
+4. Schrijf getallen uit als woorden:
+   - "$74.000" of "$74K" → "vierenzeventig duizend dollar"
+   - "$2.5 miljard" → "twee en een half miljard dollar"  
+   - "0.44 SOL" → "nul komma vierenveertig SOL"
+   - "-44%" → "min vierenveertig procent"
+   - "$0.000030" → "nul komma nul nul nul nul drie dollar"
+5. Verwijder ALLE overgebleven formatting: hashes, sterretjes, underscores, backticks, streepjes als opsommingsteken.
+6. Als er nog emoji of speciale tekens instaan, verwijder ze.
+7. Maak het beknopt — max 4-5 alinea's. Vat samen als het te lang is.
+8. Houd dezelfde taal als de input.
+9. Output ALLEEN de omgezette tekst. Geen uitleg, geen meta-commentaar.
+
+VOORBEELD INPUT:
+"Bitcoin staat rond 76.000 dollar, dat is flink gezakt van de all-time high van 108.000. De hoofdreden is Trump's tarieven chaos. Daarnaast was er een grote commodity crash, goud min 18%, zilver min 30%. Dit veroorzaakte liquidaties in crypto, 2.5 miljard in 24 uur. SOL staat rond 93 dollar, min 44% in 90 dagen."
+
+VOORBEELD OUTPUT:
+"Bitcoin staat momenteel rond de zesenzeventig duizend dollar, en dat is behoorlijk gezakt van de all-time high van honderdacht duizend. De belangrijkste reden is de chaos rond Trump's tarieven, wat voor veel onzekerheid zorgt op de markten. Daarnaast was er een flinke commodity crash. Goud daalde met achttien procent en zilver crashte met dertig procent. Dat heeft een cascade van liquidaties veroorzaakt in crypto, goed voor twee en een half miljard dollar aan liquidaties in slechts vierentwintig uur. Solana staat nu rond de drieënnegentig dollar, een daling van vierenveertig procent in negentig dagen."`;
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -291,18 +294,32 @@ REGELS:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: preClean }
         ],
-        max_tokens: 800,
+        max_tokens: 1200,
         temperature: 0.3,
       }),
     });
 
     if (!response.ok) {
       console.error('GPT-4o TTS formatting failed:', response.status);
-      return preClean; // Pre-cleaned text is already decent
+      return preClean;
     }
 
     const result = await response.json();
-    return result.choices[0].message.content;
+    const ttsText = result.choices[0].message.content;
+    
+    // Final safety pass: strip any formatting the model snuck in
+    const finalClean = ttsText
+      .replace(/\*+/g, '')
+      .replace(/#+/g, '')
+      .replace(/`/g, '')
+      .replace(/_/g, ' ')
+      .replace(/[\u{1F300}-\u{1FAFF}]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    console.log('TTS-friendly text length:', finalClean.length);
+    console.log('TTS-friendly preview:', finalClean.substring(0, 200));
+    return finalClean;
   } catch (err) {
     console.error('makeTTSFriendly error:', err);
     return preClean;
@@ -311,19 +328,20 @@ REGELS:
 
 // Text-to-Speech using ElevenLabs
 async function textToSpeech(text) {
-  // Clean up text for TTS (remove markdown, emojis in code blocks, etc)
+  // Text should already be clean when coming through the TTS pipeline
+  // This is a final safety net + length limiter
   let cleanText = text
-    .replace(/```[\s\S]*?```/g, 'code block omitted') // Remove code blocks
-    .replace(/\*\*/g, '') // Remove bold
-    .replace(/\*/g, '') // Remove italic
-    .replace(/`/g, '') // Remove inline code
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Links to text
-    .replace(/#{1,6}\s/g, '') // Remove headers
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/\*+/g, '')
+    .replace(/#+/g, '')
+    .replace(/`/g, '')
     .trim();
 
-  // Limit length for TTS
-  if (cleanText.length > 1500) {
-    cleanText = cleanText.substring(0, 1500) + '...';
+  // Limit length for TTS (ElevenLabs has limits)
+  if (cleanText.length > 2500) {
+    // Cut at last sentence boundary before limit
+    const cutPoint = cleanText.lastIndexOf('.', 2400);
+    cleanText = cutPoint > 1500 ? cleanText.substring(0, cutPoint + 1) : cleanText.substring(0, 2500);
   }
 
   const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {

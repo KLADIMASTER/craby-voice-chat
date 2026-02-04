@@ -11,17 +11,16 @@ const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN;
 const VOICE_ID = process.env.VOICE_ID || 'TX3LPaxmHKxFdv7VOQHJ'; // Liam - Craby's voice
 const PORT = process.env.PORT || 3000;
 
-// Voice-specific system instruction (prepended to first message)
-const VOICE_CONTEXT = `[Voice Call] You are on a VOICE call. Your response will be read aloud by text-to-speech.
-
-CRITICAL TTS RULES:
-- NO emoji's (they get read as "emoji crab" etc.)
-- NO special symbols like $, %, →, etc.
-- Write numbers naturally: "92 dollars" not "$92", "minus 8 percent" not "-8%"
-- NO parentheses with data like "(24h)" - just say "in the last 24 hours"
-- Keep responses conversational and natural for speaking
-- Aim for 1-3 sentences unless more detail is needed
-- Sound like a friend talking, not a data readout`;
+// Voice-specific system instruction (prepended to EVERY message)
+const VOICE_CONTEXT = `[VOICE CALL - TTS OUTPUT]
+CRITICAL: Your response will be READ ALOUD. Follow these rules STRICTLY:
+- NO emoji (🦀📉 etc) - they sound terrible when read aloud
+- NO markdown (**bold**, *italic*) - TTS reads the asterisks
+- NO symbols ($, %, :) - say "74 dollar" not "$74", say "5 procent" not "5%"  
+- NO data formatting like "(24h)" - say "in the last 24 hours"
+- Talk naturally like in a phone call, 1-3 sentences max
+- Example BAD: "**BTC:** $74,138 📉 (-5%)"
+- Example GOOD: "Bitcoin staat op 74 duizend dollar, min 5 procent vandaag"`;
 
 const app = express();
 const server = http.createServer(app);
@@ -56,11 +55,10 @@ async function speechToText(audioBuffer) {
 }
 
 // Get response from OpenClaw (the REAL Craby!)
-async function getOpenClawResponse(messages, isFirstMessage = false) {
-  // Prepare messages for OpenClaw
-  const openclawMessages = messages.map((msg, idx) => {
-    // Add voice context to first user message
-    if (idx === 0 && msg.role === 'user' && isFirstMessage) {
+async function getOpenClawResponse(messages) {
+  // Prepare messages for OpenClaw - add voice context to EVERY user message
+  const openclawMessages = messages.map((msg) => {
+    if (msg.role === 'user') {
       return {
         role: 'user',
         content: `${VOICE_CONTEXT}\n\n${msg.content}`
@@ -95,8 +93,16 @@ async function getOpenClawResponse(messages, isFirstMessage = false) {
 function sanitizeForTTS(text) {
   let result = text;
   
-  // Remove all emojis (covers most emoji ranges)
-  result = result.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]/gu, '');
+  // Remove markdown formatting
+  result = result.replace(/\*\*([^*]+)\*\*/g, '$1'); // **bold** -> bold
+  result = result.replace(/\*([^*]+)\*/g, '$1');     // *italic* -> italic
+  result = result.replace(/__([^_]+)__/g, '$1');     // __underline__ -> underline
+  result = result.replace(/_([^_]+)_/g, '$1');       // _italic_ -> italic
+  result = result.replace(/`([^`]+)`/g, '$1');       // `code` -> code
+  result = result.replace(/~~([^~]+)~~/g, '$1');     // ~~strike~~ -> strike
+  
+  // Remove all emojis (comprehensive unicode ranges)
+  result = result.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]|[\u{1FA00}-\u{1FAFF}]|[\u{2300}-\u{23FF}]|[\u{2B50}]|[\u{203C}-\u{3299}]/gu, '');
   
   // Handle currency before numbers: $74.138 -> 74.138 dollar
   result = result.replace(/\$\s*([\d.,]+)/g, '$1 dollar');
@@ -111,14 +117,17 @@ function sanitizeForTTS(text) {
   // Remove parentheses but keep content
   result = result.replace(/\(([^)]+)\)/g, ', $1,');
   
+  // Clean up colons in data readouts: "Bitcoin: $74" -> "Bitcoin, 74 dollar"
+  result = result.replace(/:\s+/g, ', ');
+  
   // Clean up arrows and special chars
-  result = result.replace(/[→←↑↓➜►▶]/g, '');
-  result = result.replace(/[📈📉💰🔥⚡️✅❌⬆️⬇️]/g, '');
+  result = result.replace(/[→←↑↓➜►▶•·]/g, '');
   
   // Clean up multiple spaces and punctuation
   result = result.replace(/\s+/g, ' ');
   result = result.replace(/,\s*,/g, ',');
   result = result.replace(/\s+([.,!?])/g, '$1');
+  result = result.replace(/,\s*$/g, ''); // trailing comma
   
   return result.trim();
 }
@@ -190,11 +199,10 @@ wss.on('connection', (ws) => {
 
       // 2. Add to conversation and get OpenClaw response
       const history = conversations.get(conversationId);
-      const isFirstMessage = history.length === 0;
       history.push({ role: 'user', content: transcript });
       
       ws.send(JSON.stringify({ type: 'status', message: 'Thinking...' }));
-      const response = await getOpenClawResponse(history, isFirstMessage);
+      const response = await getOpenClawResponse(history);
       console.log('Response:', response);
       
       history.push({ role: 'assistant', content: response });

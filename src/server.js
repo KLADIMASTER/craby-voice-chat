@@ -31,13 +31,40 @@ const wss = new WebSocketServer({ server });
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Conversation history per connection
+// Route for new call experience
+app.get('/call', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/call.html'));
+});
+
+// Session tracking for conversation continuity
+const sessions = new Map();
 const conversations = new Map();
+
+// Detect audio type from buffer
+function detectAudioType(buffer) {
+  // WAV starts with RIFF
+  if (buffer.length > 4 && 
+      buffer[0] === 0x52 && buffer[1] === 0x49 && 
+      buffer[2] === 0x46 && buffer[3] === 0x46) {
+    return { mime: 'audio/wav', ext: 'wav' };
+  }
+  // WebM starts with 0x1A45DFA3
+  if (buffer.length > 4 && 
+      buffer[0] === 0x1A && buffer[1] === 0x45 && 
+      buffer[2] === 0xDF && buffer[3] === 0xA3) {
+    return { mime: 'audio/webm', ext: 'webm' };
+  }
+  // Default to webm
+  return { mime: 'audio/webm', ext: 'webm' };
+}
 
 // Speech-to-Text using ElevenLabs Scribe
 async function speechToText(audioBuffer) {
+  const audioType = detectAudioType(audioBuffer);
+  console.log(`Audio type detected: ${audioType.mime}`);
+  
   const formData = new FormData();
-  formData.append('file', new Blob([audioBuffer], { type: 'audio/webm' }), 'audio.webm');
+  formData.append('file', new Blob([audioBuffer], { type: audioType.mime }), `audio.${audioType.ext}`);
   formData.append('model_id', 'scribe_v2');
 
   const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
@@ -49,7 +76,8 @@ async function speechToText(audioBuffer) {
   });
 
   if (!response.ok) {
-    throw new Error(`STT failed: ${response.status}`);
+    const errText = await response.text();
+    throw new Error(`STT failed: ${response.status} - ${errText}`);
   }
 
   const result = await response.json();
@@ -144,6 +172,21 @@ function basicSanitize(text) {
 
 // Text-to-Speech using ElevenLabs
 async function textToSpeech(text) {
+  // Clean up text for TTS (remove markdown, emojis in code blocks, etc)
+  let cleanText = text
+    .replace(/```[\s\S]*?```/g, 'code block omitted') // Remove code blocks
+    .replace(/\*\*/g, '') // Remove bold
+    .replace(/\*/g, '') // Remove italic
+    .replace(/`/g, '') // Remove inline code
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Links to text
+    .replace(/#{1,6}\s/g, '') // Remove headers
+    .trim();
+
+  // Limit length for TTS
+  if (cleanText.length > 1500) {
+    cleanText = cleanText.substring(0, 1500) + '...';
+  }
+
   const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
     method: 'POST',
     headers: {
@@ -151,7 +194,7 @@ async function textToSpeech(text) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      text: text,
+      text: cleanText,
       model_id: 'eleven_multilingual_v2',
       voice_settings: {
         stability: 0.5,
@@ -170,7 +213,10 @@ async function textToSpeech(text) {
 // WebSocket connection handler
 wss.on('connection', (ws) => {
   console.log('Client connected');
-  const conversationId = Date.now().toString();
+  const sessionId = Date.now().toString();
+  const conversationId = `conv-${sessionId}`;
+  
+  sessions.set(sessionId, { connected: true });
   conversations.set(conversationId, []);
 
   ws.on('message', async (data, isBinary) => {
@@ -185,7 +231,7 @@ wss.on('connection', (ws) => {
       
       if (msg === 'reset') {
         conversations.set(conversationId, []);
-        ws.send(JSON.stringify({ type: 'status', message: 'Conversation reset' }));
+        ws.send(JSON.stringify({ type: 'status', message: 'Session reset' }));
         return;
       }
       return;
@@ -258,6 +304,7 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     console.log('Client disconnected');
+    sessions.delete(sessionId);
     conversations.delete(conversationId);
   });
 });
@@ -266,4 +313,5 @@ server.listen(PORT, () => {
   console.log(`🦀 Craby Voice Chat running on port ${PORT}`);
   console.log(`   OpenClaw API: ${OPENCLAW_API_URL}`);
   console.log(`   TTS Formatter: GPT-4o-mini via OpenRouter`);
+  console.log(`   New call UI: /call`);
 });

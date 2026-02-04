@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test</title>
+</head>
+<body style="background: #1a1a2e; color: white; padding: 40px; font-family: sans-serif;">
+  <h1>🦀 Test Page</h1>
+  <p id="status">Testing WebSocket...</p>
+  <script>
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${location.host}`);
+    ws.onopen = () => document.getElementById('status').textContent = '✅ WebSocket connected!';
+    ws.onerror = (e) => document.getElementById('status').textContent = '❌ WebSocket error: ' + e;
+    ws.onclose = () => document.getElementById('status').textContent += ' (closed)';
+  </script>
+</body>
+</html>

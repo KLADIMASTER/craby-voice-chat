@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Bel met Craby 🦀</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      padding: 20px;
+      overflow: hidden;
+    }
+    
+    .phone-container {
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+      position: relative;
+    }
+    
+    /* Avatar section */
+    .avatar-section {
+      margin-bottom: 20px;
+    }
+    
+    .avatar {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #ff6b35, #ff8c42);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 70px;
+      margin: 0 auto;
+      box-shadow: 0 10px 40px rgba(255, 107, 53, 0.3);
+      position: relative;
+      transition: all 0.3s ease;
+    }
+    
+    .avatar.ringing {
+      animation: ring-pulse 1s infinite;
+    }
+    
+    .avatar.connected {
+      box-shadow: 0 10px 50px rgba(46, 204, 113, 0.5);
+      background: linear-gradient(145deg, #27ae60, #2ecc71);
+    }
+    
+    .avatar.speaking {
+      box-shadow: 0 10px 60px rgba(168, 85, 247, 0.6);
+      background: linear-gradient(145deg, #9b59b6, #8e44ad);
+      animation: speak-pulse 0.5s infinite;
+    }
+    
+    @keyframes ring-pulse {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      25% { transform: scale(1.05) rotate(-3deg); }
+      75% { transform: scale(1.05) rotate(3deg); }
+    }
+    
+    @keyframes speak-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+    
+    .caller-name {
+      font-size: 2rem;
+      font-weight: 600;
+      margin-top: 15px;
+    }
+    
+    .call-type {
+      color: #8892b0;
+      font-size: 0.95rem;
+      margin-top: 5px;
+    }
+    
+    /* Call timer */
+    .call-timer {
+      font-size: 1.5rem;
+      font-weight: 300;
+      color: #64ffda;
+      margin: 15px 0;
+      font-variant-numeric: tabular-nums;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .call-timer.visible {
+      opacity: 1;
+    }
+    
+    /* Status indicator */
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px 0;
+      min-height: 30px;
+    }
+    
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #64ffda;
+      animation: blink 1.5s infinite;
+    }
+    
+    .status-dot.listening { background: #64ffda; }
+    .status-dot.processing { background: #ffd93d; animation: pulse-fast 0.5s infinite; }
+    .status-dot.speaking { background: #a855f7; }
+    
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    
+    @keyframes pulse-fast {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.7; }
+    }
+    
+    .status-text {
+      color: #ccd6f6;
+      font-size: 0.95rem;
+    }
+    
+    /* Audio visualizer */
+    .visualizer-container {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 25px 0;
+    }
+    
+    .visualizer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+      height: 60px;
+    }
+    
+    .bar {
+      width: 6px;
+      background: linear-gradient(to top, #64ffda, #4ade80);
+      border-radius: 3px;
+      transition: height 0.05s ease;
+      min-height: 4px;
+    }
+    
+    .bar.speaking-bar {
+      background: linear-gradient(to top, #a855f7, #c084fc);
+    }
+    
+    /* Transcript */
+    .transcript-container {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 15px;
+      margin: 20px 0;
+      max-height: 150px;
+      overflow-y: auto;
+      text-align: left;
+    }
+    
+    .transcript-message {
+      margin: 10px 0;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    
+    .transcript-message.user {
+      background: rgba(100, 255, 218, 0.1);
+      border-left: 3px solid #64ffda;
+    }
+    
+    .transcript-message.assistant {
+      background: rgba(168, 85, 247, 0.1);
+      border-left: 3px solid #a855f7;
+    }
+    
+    .transcript-message .label {
+      font-size: 0.75rem;
+      color: #8892b0;
+      margin-bottom: 4px;
+    }
+    
+    /* Call buttons */
+    .call-actions {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-top: 30px;
+    }
+    
+    .call-btn {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: none;
+      font-size: 1.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .call-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .btn-answer {
+      background: linear-gradient(145deg, #27ae60, #2ecc71);
+      box-shadow: 0 8px 25px rgba(46, 204, 113, 0.4);
+    }
+    
+    .btn-answer:hover {
+      box-shadow: 0 12px 35px rgba(46, 204, 113, 0.6);
+    }
+    
+    .btn-hangup {
+      background: linear-gradient(145deg, #e74c3c, #c0392b);
+      box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+    }
+    
+    .btn-hangup:hover {
+      box-shadow: 0 12px 35px rgba(231, 76, 60, 0.6);
+    }
+    
+    .btn-mute {
+      background: rgba(255,255,255,0.1);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    .btn-mute.muted {
+      background: #e74c3c;
+    }
+    
+    /* Hidden states */
+    .hidden { display: none !important; }
+    
+    /* Initial state - incoming call simulation */
+    .incoming-call .avatar { animation: ring-pulse 0.5s infinite; }
+    
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 15, 35, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.5s;
+    }
+    
+    .loading-overlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(100, 255, 218, 0.2);
+      border-top-color: #64ffda;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+      margin-top: 20px;
+      color: #8892b0;
+    }
+    
+    /* Error message */
+    .error-banner {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(231, 76, 60, 0.9);
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      z-index: 101;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .error-banner.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">VAD model laden...</p>
+  </div>
+  
+  <!-- Error banner -->
+  <div class="error-banner" id="errorBanner"></div>
+  
+  <div class="phone-container">
+    <!-- Avatar -->
+    <div class="avatar-section">
+      <div class="avatar" id="avatar">🦀</div>
+      <h1 class="caller-name">Craby</h1>
+      <p class="call-type" id="callType">Tik om te bellen</p>
+    </div>
+    
+    <!-- Timer -->
+    <div class="call-timer" id="callTimer">00:00</div>
+    
+    <!-- Status -->
+    <div class="status-indicator" id="statusIndicator">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-text" id="statusText">Klaar om te bellen</span>
+    </div>
+    
+    <!-- Visualizer -->
+    <div class="visualizer-container">
+      <div class="visualizer" id="visualizer">
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+      </div>
+    </div>
+    
+    <!-- Transcript -->
+    <div class="transcript-container" id="transcript"></div>
+    
+    <!-- Call buttons -->
+    <div class="call-actions" id="callActions">
+      <button class="call-btn btn-answer" id="btnCall" title="Bel">📞</button>
+    </div>
+    
+    <div class="call-actions hidden" id="inCallActions">
+      <button class="call-btn btn-mute" id="btnMute" title="Mute">🎤</button>
+      <button class="call-btn btn-hangup" id="btnHangup" title="Ophangen">📵</button>
+    </div>
+  </div>
+  
+  <!-- Audio elements -->
+  <audio id="audioPlayer"></audio>
+  <audio id="ringTone" loop>
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2JkZiZlI2Df3d0eYKOm6SqsK+pnpCCdGtncHyKmqexu7+6saSXiXpva2x0gI6frLe/wLmvpJiLfXFrbHF7iJimsLu+ubCkl4p8cGtsdH+Ll6OvuLy3rqOWiXxyb3J5goqTnaasrauon5aOhoB8enl6fICFiouLiYaCfnt5eXp7fH5/f39+fXx7enp5eXl5eXl5eXl5eXl5eXl5eXl5eXl5" type="audio/wav">
+  </audio>
+  
+  <!-- VAD Library (Silero VAD - high quality voice detection) -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.7/dist/bundle.min.js"></script>
+  
+  <script>
+    // Elements
+    const avatar = document.getElementById('avatar');
+    const callType = document.getElementById('callType');
+    const callTimer = document.getElementById('callTimer');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const visualizer = document.getElementById('visualizer');
+    const bars = visualizer.querySelectorAll('.bar');
+    const transcript = document.getElementById('transcript');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const ringTone = document.getElementById('ringTone');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const errorBanner = document.getElementById('errorBanner');
+    
+    const btnCall = document.getElementById('btnCall');
+    const btnMute = document.getElementById('btnMute');
+    const btnHangup = document.getElementById('btnHangup');
+    const callActions = document.getElementById('callActions');
+    const inCallActions = document.getElementById('inCallActions');
+    
+    // State
+    let ws = null;
+    let vad = null;
+    let isInCall = false;
+    let isMuted = false;
+    let isProcessing = false;
+    let isCrabySpeaking = false;
+    let callStartTime = null;
+    let timerInterval = null;
+    let audioContext = null;
+    let analyser = null;
+    
+    // Show error
+    function showError(msg) {
+      errorBanner.textContent = msg;
+      errorBanner.classList.add('visible');
+      setTimeout(() => errorBanner.classList.remove('visible'), 5000);
+    }
+    
+    // Update status
+    function setStatus(text, type = 'listening') {
+      statusText.textContent = text;
+      statusDot.className = 'status-dot ' + type;
+    }
+    
+    // Update timer
+    function updateTimer() {
+      if (!callStartTime) return;
+      const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+      const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+      const secs = (elapsed % 60).toString().padStart(2, '0');
+      callTimer.textContent = `${mins}:${secs}`;
+    }
+    
+    // Update visualizer
+    function updateVisualizer(volumes, isSpeaking = false) {
+      bars.forEach((bar, i) => {
+        const vol = volumes[i % volumes.length] || 0;
+        const height = Math.max(4, vol * 50);
+        bar.style.height = height + 'px';
+        bar.className = 'bar' + (isSpeaking ? ' speaking-bar' : '');
+      });
+    }
+    
+    // Add transcript message
+    function addMessage(who, text) {
+      const div = document.createElement('div');
+      div.className = 'transcript-message ' + (who === 'user' ? 'user' : 'assistant');
+      div.innerHTML = `<div class="label">${who === 'user' ? 'Jij' : 'Craby'}</div>${text}`;
+      transcript.appendChild(div);
+      transcript.scrollTop = transcript.scrollHeight;
+    }
+    
+    // Connect WebSocket
+    function connectWS() {
+      return new Promise((resolve, reject) => {
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${protocol}//${location.host}`);
+        
+        ws.onopen = () => {
+          console.log('WebSocket connected');
+          resolve();
+        };
+        
+        ws.onerror = (err) => {
+          console.error('WebSocket error:', err);
+          reject(err);
+        };
+        
+        ws.onclose = () => {
+          console.log('WebSocket closed');
+          if (isInCall) {
+            showError('Verbinding verbroken, opnieuw verbinden...');
+            setTimeout(connectWS, 2000);
+          }
+        };
+        
+        ws.onmessage = async (event) => {
+          if (event.data instanceof Blob) {
+            // Audio response from Craby
+            isCrabySpeaking = true;
+            isProcessing = false;
+            avatar.className = 'avatar speaking';
+            setStatus('Craby spreekt...', 'speaking');
+            
+            // Pause VAD while playing audio
+            if (vad) vad.pause();
+            
+            const audioUrl = URL.createObjectURL(event.data);
+            audioPlayer.src = audioUrl;
+            await audioPlayer.play();
+          } else {
+            const msg = JSON.parse(event.data);
+            console.log('Message:', msg);
+            
+            if (msg.type === 'transcript') {
+              addMessage('user', msg.text);
+            } else if (msg.type === 'response') {
+              addMessage('assistant', msg.text);
+            } else if (msg.type === 'status') {
+              if (msg.message === 'Transcribing...') {
+                setStatus('Verwerken...', 'processing');
+                isProcessing = true;
+              } else if (msg.message === 'Thinking...') {
+                setStatus('Craby denkt na...', 'processing');
+              } else if (msg.message === 'Generating voice...') {
+                setStatus('Stem genereren...', 'processing');
+              } else if (msg.message === 'No speech detected') {
+                isProcessing = false;
+                setStatus('Luisteren...', 'listening');
+              }
+            } else if (msg.type === 'error') {
+              showError(msg.message);
+              isProcessing = false;
+              setStatus('Luisteren...', 'listening');
+            }
+          }
+        };
+      });
+    }
+    
+    // Audio finished playing
+    audioPlayer.onended = () => {
+      isCrabySpeaking = false;
+      avatar.className = 'avatar connected';
+      setStatus('Luisteren...', 'listening');
+      
+      // Resume VAD
+      if (vad && isInCall && !isMuted) {
+        vad.start();
+      }
+    };
+    
+    // Initialize VAD
+    async function initVAD() {
+      try {
+        // Create audio context for visualizer
+        audioContext = new AudioContext();
+        
+        vad = await vad.MicVAD.new({
+          onSpeechStart: () => {
+            if (!isInCall || isMuted || isProcessing || isCrabySpeaking) return;
+            console.log('Speech started');
+            avatar.className = 'avatar connected';
+            setStatus('Je spreekt...', 'listening');
+          },
+          onSpeechEnd: async (audio) => {
+            if (!isInCall || isMuted || isProcessing || isCrabySpeaking) return;
+            console.log('Speech ended, sending audio...');
+            
+            isProcessing = true;
+            setStatus('Verwerken...', 'processing');
+            
+            // Convert Float32Array to WAV and send
+            const wavBlob = float32ToWav(audio, 16000);
+            ws.send(wavBlob);
+          },
+          onVADMisfire: () => {
+            console.log('VAD misfire (background noise)');
+          },
+          positiveSpeechThreshold: 0.8,  // Higher = less sensitive
+          negativeSpeechThreshold: 0.4,
+          redemptionFrames: 8,
+          minSpeechFrames: 5,
+          preSpeechPadFrames: 5,
+        });
+        
+        console.log('VAD initialized');
+        loadingOverlay.classList.add('fade-out');
+        
+      } catch (err) {
+        console.error('VAD init failed:', err);
+        showError('Kon spraakherkenning niet laden: ' + err.message);
+        loadingOverlay.classList.add('fade-out');
+        
+        // Fallback to simple volume-based detection
+        initFallbackVAD();
+      }
+    }
+    
+    // Convert Float32Array to WAV blob
+    function float32ToWav(float32Array, sampleRate) {
+      const buffer = new ArrayBuffer(44 + float32Array.length * 2);
+      const view = new DataView(buffer);
+      
+      // WAV header
+      const writeString = (offset, string) => {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      };
+      
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + float32Array.length * 2, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeString(36, 'data');
+      view.setUint32(40, float32Array.length * 2, true);
+      
+      // Convert samples
+      let offset = 44;
+      for (let i = 0; i < float32Array.length; i++) {
+        const s = Math.max(-1, Math.min(1, float32Array[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        offset += 2;
+      }
+      
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+    
+    // Fallback VAD (simple volume-based)
+    async function initFallbackVAD() {
+      console.log('Using fallback VAD');
+      
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioContext = new AudioContext();
+        analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 512;
+        
+        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        let audioChunks = [];
+        let isRecording = false;
+        let silenceTimer = null;
+        
+        const THRESHOLD = 25;
+        const SILENCE_MS = 1200;
+        
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+        
+        mediaRecorder.onstop = () => {
+          if (audioChunks.length > 0 && isInCall && !isMuted) {
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            ws.send(blob);
+            isProcessing = true;
+            setStatus('Verwerken...', 'processing');
+          }
+          audioChunks = [];
+        };
+        
+        // VAD mock object
+        vad = {
+          start: () => {
+            const check = () => {
+              if (!isInCall || isMuted || isCrabySpeaking) {
+                requestAnimationFrame(check);
+                return;
+              }
+              
+              const data = new Uint8Array(analyser.frequencyBinCount);
+              analyser.getByteFrequencyData(data);
+              const avg = data.reduce((a, b) => a + b) / data.length;
+              
+              // Visualizer
+              const volumes = Array.from(data.slice(0, 12)).map(v => v / 255);
+              updateVisualizer(volumes, isCrabySpeaking);
+              
+              if (avg > THRESHOLD && !isProcessing && !isCrabySpeaking) {
+                if (!isRecording) {
+                  isRecording = true;
+                  audioChunks = [];
+                  mediaRecorder.start();
+                  setStatus('Je spreekt...', 'listening');
+                }
+                clearTimeout(silenceTimer);
+                silenceTimer = setTimeout(() => {
+                  if (isRecording) {
+                    isRecording = false;
+                    mediaRecorder.stop();
+                  }
+                }, SILENCE_MS);
+              }
+              
+              requestAnimationFrame(check);
+            };
+            check();
+          },
+          pause: () => {
+            if (mediaRecorder.state === 'recording') {
+              mediaRecorder.stop();
+            }
+          },
+          destroy: () => {
+            stream.getTracks().forEach(t => t.stop());
+          }
+        };
+        
+        loadingOverlay.classList.add('fade-out');
+        
+      } catch (err) {
+        showError('Microfoon toegang geweigerd');
+        loadingOverlay.classList.add('fade-out');
+      }
+    }
+    
+    // Start call
+    async function startCall() {
+      try {
+        // Connect WebSocket first
+        await connectWS();
+        
+        // Start VAD
+        if (vad) {
+          vad.start();
+        } else {
+          await initFallbackVAD();
+          vad.start();
+        }
+        
+        isInCall = true;
+        callStartTime = Date.now();
+        timerInterval = setInterval(updateTimer, 1000);
+        
+        // Update UI
+        avatar.className = 'avatar connected';
+        callType.textContent = 'Verbonden';
+        callTimer.classList.add('visible');
+        callActions.classList.add('hidden');
+        inCallActions.classList.remove('hidden');
+        setStatus('Luisteren...', 'listening');
+        
+        // Play connect sound (simple beep)
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 440;
+        gain.gain.value = 0.3;
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+        osc.stop(ctx.currentTime + 0.2);
+        
+      } catch (err) {
+        showError('Kon niet verbinden: ' + err.message);
+      }
+    }
+    
+    // End call
+    function endCall() {
+      isInCall = false;
+      isCrabySpeaking = false;
+      isProcessing = false;
+      
+      // Stop timer
+      clearInterval(timerInterval);
+      callStartTime = null;
+      
+      // Stop VAD
+      if (vad) {
+        vad.pause();
+      }
+      
+      // Close WebSocket
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      
+      // Stop any playing audio
+      audioPlayer.pause();
+      audioPlayer.src = '';
+      
+      // Play hangup sound
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 350;
+      gain.gain.value = 0.3;
+      osc.start();
+      setTimeout(() => { osc.frequency.value = 440; }, 100);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.stop(ctx.currentTime + 0.3);
+      
+      // Update UI
+      avatar.className = 'avatar';
+      callType.textContent = 'Tik om te bellen';
+      callTimer.classList.remove('visible');
+      callTimer.textContent = '00:00';
+      callActions.classList.remove('hidden');
+      inCallActions.classList.add('hidden');
+      setStatus('Gesprek beëindigd', '');
+      updateVisualizer(Array(12).fill(0));
+      
+      setTimeout(() => {
+        setStatus('Klaar om te bellen', '');
+      }, 2000);
+    }
+    
+    // Toggle mute
+    function toggleMute() {
+      isMuted = !isMuted;
+      btnMute.classList.toggle('muted', isMuted);
+      btnMute.textContent = isMuted ? '🔇' : '🎤';
+      
+      if (isMuted) {
+        setStatus('Gedempt', 'processing');
+        if (vad) vad.pause();
+      } else {
+        setStatus('Luisteren...', 'listening');
+        if (vad && !isCrabySpeaking) vad.start();
+      }
+    }
+    
+    // Event listeners
+    btnCall.onclick = startCall;
+    btnHangup.onclick = endCall;
+    btnMute.onclick = toggleMute;
+    
+    // Initialize
+    async function init() {
+      try {
+        // Try to init advanced VAD
+        if (window.vad && window.vad.MicVAD) {
+          await initVAD();
+        } else {
+          console.log('VAD library not loaded, using fallback');
+          loadingOverlay.classList.add('fade-out');
+        }
+      } catch (err) {
+        console.error('Init error:', err);
+        loadingOverlay.classList.add('fade-out');
+      }
+    }
+    
+    init();
+  </script>
+</body>
+</html>

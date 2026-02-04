@@ -28,8 +28,86 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+// Password for access (spoken phrase to check)
+const ACCESS_PASSWORD = 'broodje biefstuk';
+
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
+
+// Password verification endpoint
+app.post('/api/verify-password', express.raw({ type: 'audio/*', limit: '10mb' }), async (req, res) => {
+  try {
+    console.log('Password verification request received');
+    
+    const audioBuffer = req.body;
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return res.json({ success: false, error: 'No audio received' });
+    }
+    
+    // Transcribe using ElevenLabs
+    const audioType = detectAudioType(audioBuffer);
+    const formData = new FormData();
+    formData.append('file', new Blob([audioBuffer], { type: audioType.mime }), `audio.${audioType.ext}`);
+    formData.append('model_id', 'scribe_v2');
+
+    const sttResponse = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+      method: 'POST',
+      headers: { 'xi-api-key': ELEVENLABS_API_KEY },
+      body: formData,
+    });
+
+    if (!sttResponse.ok) {
+      console.error('STT failed:', sttResponse.status);
+      return res.json({ success: false, error: 'Speech recognition failed' });
+    }
+
+    const result = await sttResponse.json();
+    const transcript = (result.text || '').toLowerCase().trim();
+    console.log('Password attempt transcript:', transcript);
+
+    // Check if password phrase is in transcript (flexible matching)
+    let passwordMatch = false;
+    if (transcript.includes('broodje') && transcript.includes('biefstuk')) {
+      passwordMatch = true;
+    }
+    if (transcript.includes('brootje biefstuk') || transcript.includes('broodje beefstuk')) {
+      passwordMatch = true;
+    }
+
+    console.log('Password match:', passwordMatch);
+    res.json({ success: passwordMatch, transcript });
+    
+  } catch (error) {
+    console.error('Password verification error:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Generate password prompt TTS
+app.get('/api/password-prompt', async (req, res) => {
+  try {
+    const promptText = "Welkom! Wat is het wachtwoord?";
+    const audioBuffer = await textToSpeech(promptText);
+    res.set('Content-Type', 'audio/mpeg');
+    res.send(audioBuffer);
+  } catch (error) {
+    console.error('Password prompt TTS error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generate wrong password TTS
+app.get('/api/wrong-password', async (req, res) => {
+  try {
+    const promptText = "Verkeerd wachtwoord. Probeer het opnieuw.";
+    const audioBuffer = await textToSpeech(promptText);
+    res.set('Content-Type', 'audio/mpeg');
+    res.send(audioBuffer);
+  } catch (error) {
+    console.error('Wrong password TTS error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Route for call experience (real-time conversation)
 app.get('/call', (req, res) => {

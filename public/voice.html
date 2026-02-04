@@ -8,8 +8,70 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>Voice Message - Craby 🦀</title>
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    .auth-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      transition: opacity 0.5s, transform 0.5s;
+    }
+    .auth-overlay.hidden {
+      opacity: 0;
+      transform: scale(1.1);
+      pointer-events: none;
+    }
+    .auth-avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
+      margin-bottom: 30px;
+    }
+    .auth-avatar.listening {
+      animation: auth-pulse 1s infinite;
+      background: #e74c3c;
+    }
+    .auth-avatar.success { background: var(--success-color); }
+    @keyframes auth-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    .auth-title { font-size: 1.8rem; margin-bottom: 10px; color: var(--text-primary); }
+    .auth-status { color: var(--text-secondary); font-size: 1rem; margin-bottom: 30px; text-align: center; max-width: 280px; }
+    .auth-btn {
+      padding: 16px 40px;
+      border-radius: 30px;
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .auth-btn:disabled { opacity: 0.5; }
+  </style>
 </head>
 <body class="voice-page">
+  <!-- Auth overlay -->
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-avatar" id="authAvatar">🔐</div>
+    <h1 class="auth-title">Wachtwoord</h1>
+    <p class="auth-status" id="authStatus">Druk op de knop en spreek het wachtwoord in</p>
+    <button class="auth-btn" id="authBtn">🎤 Spreek wachtwoord</button>
+  </div>
+  
   <!-- Theme Toggle -->
   <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
     <span class="icon-moon">🌙</span>
@@ -109,6 +171,96 @@
       const current = html.getAttribute('data-theme');
       setTheme(current === 'dark' ? 'light' : 'dark');
     });
+    
+    // ==========================================
+    // Password Authentication
+    // ==========================================
+    const authOverlay = document.getElementById('authOverlay');
+    const authAvatar = document.getElementById('authAvatar');
+    const authStatus = document.getElementById('authStatus');
+    const authBtn = document.getElementById('authBtn');
+    
+    let isAuthenticated = sessionStorage.getItem('craby_authenticated') === 'true';
+    let authMediaRecorder = null;
+    let authAudioChunks = [];
+    let isAuthRecording = false;
+    const authAudioPlayer = new Audio();
+    
+    if (isAuthenticated) authOverlay.classList.add('hidden');
+    
+    async function playPasswordPrompt() {
+      try {
+        authAudioPlayer.src = '/api/password-prompt';
+        await authAudioPlayer.play();
+      } catch (e) {}
+    }
+    
+    async function startAuthRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        authMediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        authAudioChunks = [];
+        authMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) authAudioChunks.push(e.data); };
+        authMediaRecorder.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          if (authAudioChunks.length > 0) await verifyPassword(new Blob(authAudioChunks, { type: 'audio/webm' }));
+        };
+        authMediaRecorder.start();
+        isAuthRecording = true;
+        authAvatar.className = 'auth-avatar listening';
+        authAvatar.textContent = '🎤';
+        authStatus.textContent = 'Luisteren...';
+        authBtn.textContent = '⏹️ Stop';
+      } catch (err) { authStatus.textContent = 'Microfoon geweigerd'; }
+    }
+    
+    function stopAuthRecording() {
+      if (authMediaRecorder && isAuthRecording) {
+        authMediaRecorder.stop();
+        isAuthRecording = false;
+        authAvatar.className = 'auth-avatar';
+        authAvatar.textContent = '🔐';
+        authStatus.textContent = 'Controleren...';
+        authBtn.textContent = '⏳';
+        authBtn.disabled = true;
+      }
+    }
+    
+    async function verifyPassword(audioBlob) {
+      try {
+        const result = await (await fetch('/api/verify-password', { method: 'POST', headers: { 'Content-Type': 'audio/webm' }, body: audioBlob })).json();
+        if (result.success) {
+          authAvatar.className = 'auth-avatar success';
+          authAvatar.textContent = '✅';
+          authStatus.textContent = 'Welkom!';
+          sessionStorage.setItem('craby_authenticated', 'true');
+          setTimeout(() => authOverlay.classList.add('hidden'), 1500);
+        } else {
+          authAvatar.textContent = '❌';
+          authStatus.textContent = 'Verkeerd. Probeer opnieuw.';
+          authAudioPlayer.src = '/api/wrong-password';
+          await authAudioPlayer.play();
+          authAudioPlayer.onended = () => {
+            authAvatar.className = 'auth-avatar';
+            authAvatar.textContent = '🔐';
+            authStatus.textContent = 'Spreek het wachtwoord';
+            authBtn.textContent = '🎤 Spreek';
+            authBtn.disabled = false;
+          };
+        }
+      } catch (err) { authBtn.textContent = '🎤 Spreek'; authBtn.disabled = false; }
+    }
+    
+    authBtn.onclick = async () => {
+      if (isAuthRecording) stopAuthRecording();
+      else {
+        await playPasswordPrompt();
+        authAudioPlayer.onended = () => startAuthRecording();
+        setTimeout(() => { if (!isAuthRecording && !authBtn.disabled) startAuthRecording(); }, 3000);
+      }
+    };
+    
+    if (!isAuthenticated) setTimeout(playPasswordPrompt, 500);
     
     // ==========================================
     // Voice Chat Logic (unchanged)

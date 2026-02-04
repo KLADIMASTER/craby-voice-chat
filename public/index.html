@@ -133,6 +133,41 @@
     audio {
       display: none;
     }
+    
+    .speed-controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .speed-btn {
+      padding: 8px 16px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      background: transparent;
+      color: #8892b0;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .speed-btn:hover {
+      border-color: rgba(255,255,255,0.4);
+      color: #fff;
+    }
+    
+    .speed-btn.active {
+      border-color: #64ffda;
+      color: #64ffda;
+      background: rgba(100, 255, 218, 0.1);
+    }
+    
+    .speed-label {
+      color: #8892b0;
+      font-size: 0.75rem;
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
@@ -145,6 +180,13 @@
     <button class="talk-button" id="talkBtn" disabled>
       Hold to Talk
     </button>
+    
+    <div class="speed-label">Playback Speed</div>
+    <div class="speed-controls">
+      <button class="speed-btn active" data-speed="1">1.0x</button>
+      <button class="speed-btn" data-speed="1.25">1.25x</button>
+      <button class="speed-btn" data-speed="1.5">1.5x</button>
+    </div>
     
     <div class="transcript-box" id="transcript"></div>
     
@@ -167,6 +209,18 @@
     let isRecording = false;
     let audioQueue = [];
     let isPlayingAudio = false;
+    let playbackSpeed = 1.0;
+    
+    // Speed button handlers
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        playbackSpeed = parseFloat(btn.dataset.speed);
+        // Apply to currently playing audio if any
+        audioPlayer.playbackRate = playbackSpeed;
+      });
+    });
     
     // Connect to WebSocket
     function connect() {
@@ -213,13 +267,23 @@
               holdMusic.volume = 0.3; // Soft background volume
               // Wait for acknowledgment audio to finish, then start music
               setTimeout(() => {
-                if (!holdMusic.paused) return; // Already stopped
-                holdMusic.play().catch(() => {});
+                if (holdMusic.paused && holdMusic.src) {
+                  holdMusic.play().catch(() => {});
+                  setStatus('🎵 Hold music...', 'processing');
+                }
               }, 2500); // Give time for ack TTS to play
-              setStatus('🎵 Hold music...', 'processing');
             } else if (msg.action === 'stop') {
-              holdMusic.pause();
-              holdMusic.currentTime = 0;
+              // Fade out smoothly
+              const fadeOut = setInterval(() => {
+                if (holdMusic.volume > 0.05) {
+                  holdMusic.volume -= 0.05;
+                } else {
+                  clearInterval(fadeOut);
+                  holdMusic.pause();
+                  holdMusic.currentTime = 0;
+                  holdMusic.volume = 0.3; // Reset for next time
+                }
+              }, 50);
             }
           } else if (msg.type === 'error') {
             setStatus('Error: ' + msg.message, 'disconnected');
@@ -236,13 +300,8 @@
       isPlayingAudio = true;
       const audioUrl = audioQueue.shift();
       
-      // Stop hold music when playing response
-      if (audioQueue.length === 0) {
-        holdMusic.pause();
-        holdMusic.currentTime = 0;
-      }
-      
       audioPlayer.src = audioUrl;
+      audioPlayer.playbackRate = playbackSpeed;
       audioPlayer.play();
       
       audioPlayer.onended = () => {

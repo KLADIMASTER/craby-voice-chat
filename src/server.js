@@ -233,10 +233,7 @@ wss.on('connection', (ws) => {
         history.splice(0, 2);
       }
       
-      // Stop hold music - response is ready!
-      ws.send(JSON.stringify({ type: 'hold_music', action: 'stop' }));
-      
-      // Send original response to display
+      // Send original response to display (hold music keeps playing until TTS is ready!)
       ws.send(JSON.stringify({ type: 'response', text: response }));
 
       // 4. Make TTS-friendly via GPT-4o
@@ -248,6 +245,8 @@ wss.on('connection', (ws) => {
       ws.send(JSON.stringify({ type: 'status', message: 'Generating voice...' }));
       const audioBuffer = await textToSpeech(spokenText);
       
+      // Signal client: main audio incoming, stop hold music NOW
+      ws.send(JSON.stringify({ type: 'hold_music', action: 'stop' }));
       ws.send(audioBuffer);
       ws.send(JSON.stringify({ type: 'status', message: 'Ready' }));
       
